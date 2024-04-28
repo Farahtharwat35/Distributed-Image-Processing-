@@ -1,5 +1,5 @@
 import threading
-from Services import Services
+from utilities import Services
 
 
 class WorkerThread(threading.Thread):
