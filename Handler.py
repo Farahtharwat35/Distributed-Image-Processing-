@@ -48,12 +48,15 @@ class Node:
       httpd.serve_forever()
 
   async def send_response(self, message, client_address):
-    async with websockets.connect(f"ws://{client_address}:8765") as websocket:
-      await websocket.send(message)
-      await websocket.close()
+    try:
+      async with websockets.connect(f"ws://{client_address}:8765") as websocket:
+        await websocket.send(message)
+        await websocket.close()
+    except Exception as e:
+      print(f"Client is not avaliable:{client_address}--> {e}")
 
   def callback(self, ch, method, properties, body):
-    print(" [x] Received %r" % body)
+    print(" [x] Processing Response %r" % body)
     response = json.loads(body)
     task_id = response['task_id']
     client_address = response['client_address']
