@@ -3,12 +3,13 @@ from mpi4py import MPI
 import numpy as np
 from PIL import Image
 from utilities import Utilities
-
+from numpy import asarray
 
 class ProcessingNode:
     def __init__(self, **kwargs):
         self.comm = MPI.COMM_WORLD
-        self.size = self.comm.Get_size()
+        #self.size = self.comm.Get_size()
+        self.size = 5
         self.rank = self.comm.Get_rank()
         self.params = kwargs
 
@@ -52,7 +53,12 @@ class ProcessingNode:
         return processed_chunk
 
     def convert_image_to_array(self, image):
-        return np.array(image)
+        img = Image.open('test.jpeg')
+        img_pixels = asarray(img)
+        print(type(img_pixels))
+        #print(numpydata)
+        print(img_pixels.shape)
+        return img_pixels
 
     def reconstruct_array(self, result_array):
         min_val = np.min([np.min(chunk) for chunk in result_array if chunk is not None])
@@ -73,32 +79,61 @@ class ProcessingNode:
 
     def run(self, image, kernel_size=3, service_num=1):
         image_array = self.convert_image_to_array(image)
-        chunk_size = image_array.shape[0] // self.size
+        chunk_size_row = image_array.shape[0] // (self.size - 1)
+        chunk_size_col = image_array.shape[1]
+        num_channels = image_array.shape[2]
+        chunk_size = (chunk_size_row, chunk_size_col, num_channels)
+        print("Chunk size : ", chunk_size)
         overlap = kernel_size // 2
-
+        print("overlap : ", overlap)
         if self.rank == 0:
-            # Coordinator process
-            result_array = [None] * self.size
+
             recv_reqs = []
+            # Use np.zeros to create a writable array
+            result_array = np.zeros(image_array.shape, dtype=image_array.dtype)
+            print("IMAGE DTYPE" , image_array.dtype)
             for i in range(1, self.size):
-                # Allocate buffer for receiving chunks
-                result_array[i] = np.empty_like(image_array[0:chunk_size])
+                if len(image_array.shape) == 3 and image_array.shape[2] == 3:
+                    # Determine the slice indices
+                    start_row = chunk_size_row * (i - 1)
+                    end_row = chunk_size_row * i
+                    # Buffer for recieving (no change)
+                    # result_array = image_array[start_row:end_row, :, :]
+                else:
+                    start_row = chunk_size_row * (i - 1)
+                    end_row = chunk_size_row * i
+                    # Buffer for recieving (no change)
+                    # result_array = image_array[start_row:end_row, :]
                 # Non-blocking receive
-                req = self.comm.Irecv(result_array[i], source=i)
+                req = self.comm.irecv(result_array,source=i,tag=0)
                 recv_reqs.append(req)
             # Wait for all non-blocking receives to complete
-            MPI.Request.Waitall(recv_reqs)
+            statuses = MPI.Request.Waitall(recv_reqs)
+            # Check for errors in any receive request
+            for i, status in enumerate(statuses):
+                if status.MPI_ERROR != MPI.SUCCESS:
+                    # Get error string for debugging
+                    error_string = MPI.Error_string(status.MPI_ERROR)
+                    print(f"Error in receive #{i}: {error_string}")
+                    # Handle the error appropriately (e.g., exit)
+                    break
+            # Wait for all non-blocking receives to complete
+            MPI.Request.Waitsome(recv_reqs)
+
+            # Reconstruct using the received result_array
             reconstructed_image = self.reconstruct_array(result_array)
             return reconstructed_image
         else:
             # Worker processes
-            start = (self.rank - 1) * chunk_size
-            end = start + chunk_size
+            start_row = (self.rank - 1) * chunk_size_row
+            end_row = start_row + chunk_size_row
+            start_col = 0  # Starting column index
+            end_col = image_array.shape[1]  # Ending column index
             if self.rank > 1:
-                start -= overlap
+                start_row -= overlap
             if self.rank < self.size - 1:
-                end += overlap
-            chunk = image_array[start:end]
+                end_row += overlap
+            chunk = image_array[start_row:end_row, start_col:end_col, :]
 
             processed_chunk = self.process_chunk(chunk, service_num, **self.params)
 
@@ -107,12 +142,13 @@ class ProcessingNode:
             # Wait for the non-blocking send to complete
             send_req.Wait()
 
+
 if __name__ == "__main__":
     # Initialize the ProcessingNode with any required parameters
     node = ProcessingNode()
 
     # Define the path to your test image
-    test_image_path = 'sleepDeprivedButtercup.png'
+    test_image_path = 'test.jpeg'
     image = cv2.imread(test_image_path)
 
     # Define the service number for the image processing task
