@@ -83,23 +83,26 @@ class ProcessingNode:
         chunk_size_col = image_array.shape[1]
         num_channels = image_array.shape[2]
         chunk_size = (chunk_size_row, chunk_size_col, num_channels)
-        print("Chunk size : ", chunk_size)
         overlap = kernel_size // 2
         print("overlap : ", overlap)
         if self.rank == 0:
             recv_chunks = []
             for i in range(1, self.size):
                 # Determine the slice indices
-                start_row = chunk_size_row * (i - 1)
-                end_row = chunk_size_row * i
+                start_row = (chunk_size_row) * (i-1)
+                end_row = ((chunk_size_row) * i)
+                #print(f"Chunk size_{i}_BEFORE : ", start_row , " " , end_row)
                 if i > 1:
                     start_row -= overlap
-                if i < self.size - 1 :
-                    print("MY RANK @ END", self.comm.rank)
-                    end_row += overlap+1
+                    #print(f"{i} Entered IF 1")
+                if i < self.size - 1:
+                    #print(f"{i} Entered IF 2")
+                    #print("MY RANK @ END", self.comm.rank)
+                    end_row += overlap
                 print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
                 # Extract chunk to be sent to worker
                 chunk = image_array[start_row:end_row, :,:]
+                print(f"Chunk size_{i}_AFTER : ", chunk.shape)
                 # Save the chunk as an image
                 cv2.imwrite(f"chunk_{i}.png", chunk)
                 # Scatter chunk to workers
@@ -114,10 +117,13 @@ class ProcessingNode:
             return reconstructed_image
         else:
             if (self.comm.rank==1 or self.comm.rank==self.comm.size-1):
+                print(f"MY RANK IF_1 {self.comm.rank}")
+                #print("IDEAL SIZE : " ,chunk_size_row+1, chunk_size_col)
                 chunk=np.zeros((chunk_size_row+1, chunk_size_col, num_channels), dtype=image_array.dtype)
             else:
                 chunk = np.zeros((chunk_size_row+2, chunk_size_col, num_channels), dtype=image_array.dtype)
-            print("CHUNKKK: " , chunk.shape)
+                print(f"MY RANK IF_2 {self.comm.rank}")
+            print("CHUNKKK:" , chunk.shape)
             self.comm.recv(buf=chunk,source=0, tag=0)
             cv2.imwrite(f"recived_chunk_{self.comm.rank}.png",chunk)
             #chunk = image_array[start_row:end_row, :, :]
