@@ -9,7 +9,6 @@ class ProcessingNode:
     def __init__(self, **kwargs):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
-        #self.size = 5
         self.rank = self.comm.Get_rank()
         self.params = kwargs
 
@@ -72,11 +71,6 @@ class ProcessingNode:
             image = Image.fromarray(result_array, 'RGB')
         return image
 
-    # def send_to_request_handler(self, resulting_image):
-    #     # Assuming RequestHandler has a method called receive_image
-    #     request_handler = RequestHandler()
-    #     request_handler.receive_image(resulting_image)
-
     def run(self, image, kernel_size=3, service_num=1):
         image_array = self.convert_image_to_array(image)
         chunk_size_row = image_array.shape[0] // (self.size-1)
@@ -99,7 +93,7 @@ class ProcessingNode:
                     #print(f"{i} Entered IF 2")
                     #print("MY RANK @ END", self.comm.rank)
                     end_row += overlap
-                print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
+                #print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
                 # Extract chunk to be sent to worker
                 chunk = image_array[start_row:end_row, :,:]
                 print(f"Chunk size_{i}_AFTER : ", chunk.shape)
@@ -116,15 +110,7 @@ class ProcessingNode:
             reconstructed_image = self.reconstruct_array(recv_chunks)
             return reconstructed_image
         else:
-            if (self.comm.rank==1 or self.comm.rank==self.comm.size-1):
-                print(f"MY RANK IF_1 {self.comm.rank}")
-                #print("IDEAL SIZE : " ,chunk_size_row+1, chunk_size_col)
-                chunk=np.zeros((chunk_size_row+1, chunk_size_col, num_channels), dtype=image_array.dtype)
-            else:
-                chunk = np.zeros((chunk_size_row+2, chunk_size_col, num_channels), dtype=image_array.dtype)
-                print(f"MY RANK IF_2 {self.comm.rank}")
-            print("CHUNKKK:" , chunk.shape)
-            self.comm.recv(buf=chunk,source=0, tag=0)
+            chunk = self.comm.recv(source=0, tag=0)
             cv2.imwrite(f"recived_chunk_{self.comm.rank}.png",chunk)
             #chunk = image_array[start_row:end_row, :, :]
             processed_chunk = self.process_chunk(chunk, service_num, **self.params)
@@ -141,7 +127,7 @@ if __name__ == "__main__":
     image = cv2.imread(test_image_path)
 
     # Define the service number for the image processing task
-    service_num = 1  # For example, '1' for invert operation
+    service_num = 13  # For example, '1' for invert operation
 
     # Run the processing node on the test image
     if node.rank == 0:
