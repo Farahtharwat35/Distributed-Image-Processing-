@@ -92,9 +92,10 @@ class ProcessingNode:
                 # Determine the slice indices
                 start_row = chunk_size_row * (i - 1)
                 end_row = chunk_size_row * i
-                if self.rank > 1:
-                    start_row -= overlap
-                if self.rank < self.size - 1:
+                if i > 1:
+                    start_row -= overlap + 1
+                if i < self.size - 1 :
+                    print("MY RANK @ END", self.comm.rank)
                     end_row += overlap+1
                 print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
                 # Extract chunk to be sent to worker
@@ -113,11 +114,12 @@ class ProcessingNode:
             return reconstructed_image
         else:
             if (self.comm.rank==1 or self.comm.rank==self.comm.size-1):
-                chunk=np.zeros((chunk_size_row+1, chunk_size_col, num_channels), dtype=image_array.dtype)
+                chunk=np.zeros((chunk_size_row+5, chunk_size_col, num_channels), dtype=image_array.dtype)
             else:
-                chunk = np.zeros((chunk_size_row+2, chunk_size_col, num_channels), dtype=image_array.dtype)
+                chunk = np.zeros((chunk_size_row+4, chunk_size_col, num_channels), dtype=image_array.dtype)
             print("CHUNKKK: " , chunk.shape)
             self.comm.recv(buf=chunk,source=0, tag=0)
+            cv2.imwrite(f"recived_chunk_{self.comm.rank}.png",chunk)
             #chunk = image_array[start_row:end_row, :, :]
             processed_chunk = self.process_chunk(chunk, service_num, **self.params)
             # Save the chunk as an image

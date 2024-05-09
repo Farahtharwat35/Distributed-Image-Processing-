@@ -6,6 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="6792ad8d-3dad-4b31-89ba-08af24a32549" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chunk_2.png" beforeDir="false" afterPath="$PROJECT_DIR$/chunk_2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chunk_3.png" beforeDir="false" afterPath="$PROJECT_DIR$/chunk_3.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/processed_chunk_1.png" beforeDir="false" afterPath="$PROJECT_DIR$/processed_chunk_1.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/processed_chunk_2.png" beforeDir="false" afterPath="$PROJECT_DIR$/processed_chunk_2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/processed_chunk_3.png" beforeDir="false" afterPath="$PROJECT_DIR$/processed_chunk_3.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/processing_node.py" beforeDir="false" afterPath="$PROJECT_DIR$/processing_node.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -62,7 +67,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/processing_node.py</url>
-          <line>100</line>
+          <line>101</line>
           <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
