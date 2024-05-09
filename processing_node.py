@@ -8,8 +8,8 @@ from numpy import asarray
 class ProcessingNode:
     def __init__(self, **kwargs):
         self.comm = MPI.COMM_WORLD
-        #self.size = self.comm.Get_size()
-        self.size = 5
+        self.size = self.comm.Get_size()
+        #self.size = 5
         self.rank = self.comm.Get_rank()
         self.params = kwargs
 
@@ -87,62 +87,35 @@ class ProcessingNode:
         overlap = kernel_size // 2
         print("overlap : ", overlap)
         if self.rank == 0:
-
-            recv_reqs = []
-            # Use np.zeros to create a writable array
-            result_array = np.zeros(image_array.shape, dtype=image_array.dtype)
-            print("IMAGE DTYPE" , image_array.dtype)
+            recv_chunks = []
             for i in range(1, self.size):
-                if len(image_array.shape) == 3 and image_array.shape[2] == 3:
-                    # Determine the slice indices
-                    start_row = chunk_size_row * (i - 1)
-                    end_row = chunk_size_row * i
-                    # Buffer for recieving (no change)
-                    # result_array = image_array[start_row:end_row, :, :]
-                else:
-                    start_row = chunk_size_row * (i - 1)
-                    end_row = chunk_size_row * i
-                    # Buffer for recieving (no change)
-                    # result_array = image_array[start_row:end_row, :]
-                # Non-blocking receive
-                req = self.comm.irecv(result_array,source=i,tag=0)
-                recv_reqs.append(req)
-            # Wait for all non-blocking receives to complete
-            statuses = MPI.Request.Waitall(recv_reqs)
-            # Check for errors in any receive request
-            for i, status in enumerate(statuses):
-                if status.MPI_ERROR != MPI.SUCCESS:
-                    # Get error string for debugging
-                    error_string = MPI.Error_string(status.MPI_ERROR)
-                    print(f"Error in receive #{i}: {error_string}")
-                    # Handle the error appropriately (e.g., exit)
-                    break
-            # Wait for all non-blocking receives to complete
-            MPI.Request.Waitsome(recv_reqs)
+                # Determine the slice indices
+                start_row = chunk_size_row * (i - 1)
+                end_row = chunk_size_row * i
+                if self.rank > 1:
+                    start_row -= overlap
+                if self.rank < self.size - 1:
+                    end_row += overlap
+                # Extract chunk to be sent to worker
+                chunk = image_array[start_row:end_row, :,2]
+                # Scatter chunk to workers
+                self.comm.send(chunk, dest=i, tag=0)
 
-            # Reconstruct using the received result_array
-            reconstructed_image = self.reconstruct_array(result_array)
+            for i in range(1, self.size):
+                # Gather processed chunks from workers
+                processed_chunk = self.comm.recv(source=i, tag=0)
+                recv_chunks.append(processed_chunk)
+            # Reconstruct using the received chunks
+            reconstructed_image = self.reconstruct_array(recv_chunks)
             return reconstructed_image
         else:
-            # Worker processes
-            start_row = (self.rank - 1) * chunk_size_row
-            end_row = start_row + chunk_size_row
-            start_col = 0  # Starting column index
-            end_col = image_array.shape[1]  # Ending column index
-            if self.rank > 1:
-                start_row -= overlap
-            if self.rank < self.size - 1:
-                end_row += overlap
-            chunk = image_array[start_row:end_row, start_col:end_col, :]
-
+            chunk = np.empty(chunk_size, dtype=image_array.dtype)
+            print("CHUNKKK: " , chunk.shape)
+            self.comm.recv(buf=chunk,source=0, tag=0)
+            #chunk = image_array[start_row:end_row, :, :]
             processed_chunk = self.process_chunk(chunk, service_num, **self.params)
-
-            # Non-blocking send of the processed chunk to the coordinator
-            send_req = self.comm.Isend(processed_chunk, dest=0)
-            # Wait for the non-blocking send to complete
-            send_req.Wait()
-
-
+            # Gather processed chunks on rank 0
+            self.comm.send(processed_chunk, dest=0, tag=0)
 if __name__ == "__main__":
     # Initialize the ProcessingNode with any required parameters
     node = ProcessingNode()
