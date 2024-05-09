@@ -53,7 +53,7 @@ class ProcessingNode:
         return processed_chunk
 
     def convert_image_to_array(self, image):
-        img = Image.open('test.jpeg')
+        img = Image.open('SB.jpg')
         img_pixels = asarray(img)
         print(type(img_pixels))
         #print(numpydata)
@@ -79,7 +79,7 @@ class ProcessingNode:
 
     def run(self, image, kernel_size=3, service_num=1):
         image_array = self.convert_image_to_array(image)
-        chunk_size_row = image_array.shape[0] // (self.size - 1)
+        chunk_size_row = image_array.shape[0] // (self.size-1)
         chunk_size_col = image_array.shape[1]
         num_channels = image_array.shape[2]
         chunk_size = (chunk_size_row, chunk_size_col, num_channels)
@@ -95,9 +95,12 @@ class ProcessingNode:
                 if self.rank > 1:
                     start_row -= overlap
                 if self.rank < self.size - 1:
-                    end_row += overlap
+                    end_row += overlap+1
+                print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
                 # Extract chunk to be sent to worker
-                chunk = image_array[start_row:end_row, :,2]
+                chunk = image_array[start_row:end_row, :,:]
+                # Save the chunk as an image
+                cv2.imwrite(f"chunk_{i}.png", chunk)
                 # Scatter chunk to workers
                 self.comm.send(chunk, dest=i, tag=0)
 
@@ -109,11 +112,16 @@ class ProcessingNode:
             reconstructed_image = self.reconstruct_array(recv_chunks)
             return reconstructed_image
         else:
-            chunk = np.empty(chunk_size, dtype=image_array.dtype)
+            if (self.comm.rank==1 or self.comm.rank==self.comm.size-1):
+                chunk=np.zeros((chunk_size_row+1, chunk_size_col, num_channels), dtype=image_array.dtype)
+            else:
+                chunk = np.zeros((chunk_size_row+2, chunk_size_col, num_channels), dtype=image_array.dtype)
             print("CHUNKKK: " , chunk.shape)
             self.comm.recv(buf=chunk,source=0, tag=0)
             #chunk = image_array[start_row:end_row, :, :]
             processed_chunk = self.process_chunk(chunk, service_num, **self.params)
+            # Save the chunk as an image
+            cv2.imwrite(f"processed_chunk_{self.comm.rank}.png", processed_chunk)
             # Gather processed chunks on rank 0
             self.comm.send(processed_chunk, dest=0, tag=0)
 if __name__ == "__main__":
@@ -121,7 +129,7 @@ if __name__ == "__main__":
     node = ProcessingNode()
 
     # Define the path to your test image
-    test_image_path = 'test.jpeg'
+    test_image_path = 'SB.jpg'
     image = cv2.imread(test_image_path)
 
     # Define the service number for the image processing task
