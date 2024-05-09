@@ -1,16 +1,22 @@
+import tempfile
 import cv2
 from mpi4py import MPI
 import numpy as np
 from PIL import Image
 from utilities import Utilities
 from numpy import asarray
-
+import json
+import Channel
+import cloudCredentials
+import os
 class ProcessingNode:
-    def __init__(self, **kwargs):
+    def __init__(self,**kwargs):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
+        self.channel = None
         self.params = kwargs
+        self.storage = cloudCredentials.Storage()
 
     def process_chunk(self, chunk, service_num, **kwargs):
         service_methods = {
@@ -52,7 +58,7 @@ class ProcessingNode:
         return processed_chunk
 
     def convert_image_to_array(self, image):
-        img = Image.open('SB.jpg')
+        img = Image.open(image)
         img_pixels = asarray(img)
         print(type(img_pixels))
         #print(numpydata)
@@ -71,7 +77,8 @@ class ProcessingNode:
             image = Image.fromarray(result_array, 'RGB')
         return image
 
-    def run(self, image, kernel_size=3, service_num=1):
+    def run(self,task_id,kernel_size=3, service_num=1):
+        image= self.get_image(task_id)
         image_array = self.convert_image_to_array(image)
         chunk_size_row = image_array.shape[0] // (self.size-1)
         chunk_size_col = image_array.shape[1]
@@ -118,24 +125,55 @@ class ProcessingNode:
             cv2.imwrite(f"processed_chunk_{self.comm.rank}.png", processed_chunk)
             # Gather processed chunks on rank 0
             self.comm.send(processed_chunk, dest=0, tag=0)
+    def get_image (self,task_id):
+        cv2.imwrite('IQ.jpg',self.storage.get_image(task_id))
+        return self.storage.get_image(task_id)
+    def callback(self, ch, method, properties, body):
+        print(" [x] Processing Request %r" % body)
+        request = json.loads(body)
+        print("Request:",request)
+        task_id = request['task_id']
+        service_num = request['service_num']
+        result_image = self.run(task_id=task_id,service_num=service_num)
+        self.storage.upload_image(result_image, task_id)
+        
+    def listen_for_requests(self):
+        try :
+            self.channel.consume('requests', self.callback)
+            print("Listening for requests")
+        except Exception as e:
+            print("Error while listening for requests")
+            print(e)
+
+    def open_channel_with_Rabbit(self):
+        try :
+            # Open a channel
+            self.channel = Channel.Channel()
+            print("Channel opened Successfully")
+            self.listen_for_requests()
+        except Exception as e:
+            print("Channel not opened")
+            print(e)
+    
 if __name__ == "__main__":
     # Initialize the ProcessingNode with any required parameters
+    channel = Channel.Channel()
     node = ProcessingNode()
-
+    node.open_channel_with_Rabbit()
     # Define the path to your test image
-    test_image_path = 'SB.jpg'
-    image = cv2.imread(test_image_path)
+    # test_image_path = 'SB.jpg'
+    # image = cv2.imread(test_image_path)
 
     # Define the service number for the image processing task
     service_num = 13  # For example, '1' for invert operation
 
-    # Run the processing node on the test image
-    if node.rank == 0:
-        # Only the coordinator process will handle the file input/output
-        result_image = node.run(test_image_path, service_num=service_num)
-        # Save or display the result image
-        result_image.save('result_image.jpg')
-    else:
-        # Worker processes perform their part of the computation
-        node.run(image, service_num=service_num)
+    # # Run the processing node on the test image
+    # if node.rank == 0:
+    #     # Only the coordinator process will handle the file input/output
+    #     result_image = node.run(test_image_path, service_num=service_num)
+    #     # Save or display the result image
+    #     result_image.save('result_image.jpg')
+    # else:
+    #     # Worker processes perform their part of the computation
+    #     node.run(image, service_num=service_num)
 
