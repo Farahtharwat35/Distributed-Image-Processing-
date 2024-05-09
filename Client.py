@@ -7,6 +7,9 @@ import utilities
 import requests
 import json
 import base64
+import asyncio
+import websockets
+import threading
 
 class Client:
     def __init__(self, server_url):
@@ -55,21 +58,26 @@ class Client:
     def display_image(self, result):
         print("Displaying result image(s)")
         for i, res in enumerate(result):
-            decoded_image = base64.b64decode(res['image'])
-            nparr = np.frombuffer(decoded_image, np.uint8)
-            img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            plt.subplot(len(result), 1, i+1)
-            plt.imshow(cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB))
-            plt.title('Result ' + str(i+1))
-            plt.xticks([]), plt.yticks([])
-        plt.show()
+            task_id = res
+            print(f"Displaying image for task ID: {task_id}")
+    
+    async def echo(self,websocket, path):
+        async for message in websocket:
+            print(f"Received message: {message}")
+
+    async def server(self):
+        start_server = await websockets.serve(self.echo, "localhost", 8765)
+        await start_server.serve_forever()
+    
+    def start_server(self):
+        asyncio.run(self.server())
 
     def run(self):
         requests_list = []
         for _ in range(10):
             service_num = self.choose_service()
-            image = self.upload_image()
-            requests_list.append((service_num, image))
+            #image = self.upload_image()
+            requests_list.append((10, cv2.imread('image.png')))
             if len(requests_list) < 10:
                 more = input("Do you want to upload more images? (yes/no): ")
                 if more.lower() != 'yes':
@@ -77,6 +85,13 @@ class Client:
         result = self.send_request(requests_list)
         self.display_image(result)
 
+
 if __name__ == "__main__":
     client = Client('http://localhost:8000')
-    client.run()
+    client_thread = threading.Thread(target=client.run)
+    server_thread = threading.Thread(target=client.start_server)
+    client_thread.start()
+    server_thread.start()
+    client_thread.join()
+    server_thread.join()
+

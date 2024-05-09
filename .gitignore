@@ -1,7 +1,9 @@
 
+.vscode/launch.json
+.vscode/settings.json
+.vscode/c_cpp_properties.json
+__pycache__/Services.cpython-39.pyc
+.idea/workspace.xml
 result_image.jpg
 grand-highway-422418-s8-a8fdf54e267c.json
-.vscode/settings.json
-__pycache__/Services.cpython-39.pyc
-.vscode/launch.json
-.vscode/c_cpp_properties.json
+
