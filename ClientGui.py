@@ -175,11 +175,12 @@ class ClientGUI:
         response_window.title("Processed Image")
 
         # Add 50 pixels to the height for the download button
-        response_window.geometry(f'{response_image.width}x{response_image.height}')
+        response_window.geometry(f'{response_image.width}x{response_image.height+50}')
 
         response_label = tk.Label(response_window, image=self.response_image[-1])
         response_label.pack()
-        download_button = tk.Button(response_window, text="Download Image", command=self.open_link(url))
+        download_button = tk.Button(response_window, text="Download Image",command=lambda: self.open_link(url))
+        download_button.pack()
         messagebox.showinfo("Notification", "The processed image window is now open.")
 
 class WebSocketServer:
