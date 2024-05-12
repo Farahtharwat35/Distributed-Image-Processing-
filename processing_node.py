@@ -58,8 +58,10 @@ class ProcessingNode:
         return processed_chunk
 
     def convert_image_to_array(self, image):
-        img = Image.open(image)
-        img_pixels = asarray(img)
+        print("Image type :" , type(image))
+        print("---------------Entered Conversion-----------------")
+        img_pixels = asarray(image)
+        print("---------------Opened Image-----------------")
         print(type(img_pixels))
         #print(numpydata)
         print(img_pixels.shape)
@@ -79,28 +81,32 @@ class ProcessingNode:
 
     def run(self,task_id,kernel_size=3, service_num=1):
         image= self.get_image(task_id)
+        cv2.imwrite(f"image_to_be_processed.png",image)
         image_array = self.convert_image_to_array(image)
+        #print ("Image_array",image_array)
         chunk_size_row = image_array.shape[0] // (self.size-1)
-        chunk_size_col = image_array.shape[1]
-        num_channels = image_array.shape[2]
-        chunk_size = (chunk_size_row, chunk_size_col, num_channels)
+        #chunk_size_col = image_array.shape[1]
+        #num_channels = image_array.shape[2]
+        #chunk_size = (chunk_size_row, chunk_size_col, num_channels)
         overlap = kernel_size // 2
         print("overlap : ", overlap)
         if self.rank == 0:
+            print ("Entered rank 0")
             recv_chunks = []
             for i in range(1, self.size):
+                print ("Entered rank 0")
                 # Determine the slice indices
                 start_row = (chunk_size_row) * (i-1)
                 end_row = ((chunk_size_row) * i)
-                #print(f"Chunk size_{i}_BEFORE : ", start_row , " " , end_row)
+                print(f"Chunk size_{i}_BEFORE : ", start_row , " " , end_row)
                 if i > 1:
                     start_row -= overlap
-                    #print(f"{i} Entered IF 1")
+                    print(f"{i} Entered IF 1")
                 if i < self.size - 1:
-                    #print(f"{i} Entered IF 2")
-                    #print("MY RANK @ END", self.comm.rank)
+                    print(f"{i} Entered IF 2")
+                    print("MY RANK @ END", self.comm.rank)
                     end_row += overlap
-                #print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
+                print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
                 # Extract chunk to be sent to worker
                 chunk = image_array[start_row:end_row, :,:]
                 print(f"Chunk size_{i}_AFTER : ", chunk.shape)
@@ -110,6 +116,7 @@ class ProcessingNode:
                 self.comm.send(chunk, dest=i, tag=0)
 
             for i in range(1, self.size):
+                print (f"Entered rank {i} ")
                 # Gather processed chunks from workers
                 processed_chunk = self.comm.recv(source=i, tag=0)
                 recv_chunks.append(processed_chunk)
