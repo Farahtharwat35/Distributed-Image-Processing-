@@ -89,11 +89,12 @@ class ProcessingNode:
         num_channels = image_array.shape[2]
         chunk_size = (chunk_size_row, chunk_size_col, num_channels)
         overlap = kernel_size // 2
-        chunk = np.empty(chunk_size)
-        print("overlap : ", overlap)
+        chunk = np.empty(chunk_size,dtype=np.uint32)
+        processed_chunk=np.empty(chunk_size)
         if self.rank == 0:
             print ("Entered rank 0")
             recv_chunks = []
+            processed_chunk_buf=np.empty(chunk_size,np.uint32)
             for i in range(1, self.size):
                 print ("Entered rank 0")
                 # Determine the slice indices
@@ -110,39 +111,46 @@ class ProcessingNode:
                 print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
                 # Extract chunk to be sent to worker
                 chunk = image_array[start_row:end_row, :,:]
+                # Get the datatype of the array
                 print(f"Chunk size_{i}_AFTER : ", chunk.shape)
+                chunk_temp = chunk.astype(np.uint8)
                 # Save the chunk as an image
-                cv2.imwrite(f"chunk_{i}.png", chunk)
+                cv2.imwrite(f"chunk_{i}.png", chunk_temp)
                 # Scatter chunk to workers
-                req=self.comm.isend(chunk, dest=i, tag=0)
-                req.wait()
+                req=self.comm.Isend(chunk, dest=i, tag=0)
+                # req.wait()
                 print(f"SEND ACK RECIEVED FROM {i}")
 
             for i in range(1, self.size):
                 print (f"Entered rank {i} ")
                 # Gather processed chunks from workers
-                processed_chunk = self.comm.irecv(source=i, tag=0)
-                processed_chunk.wait()
-                print(f"RECV ACK RECIEVED FROM {i}")
-                recv_chunks.append(processed_chunk)
+                req = self.comm.Irecv(processed_chunk_buf,source=i, tag=0)
+                req.wait()
+                print(f"RECV ACK RECIEVED FROM 0 : Recieved from {i}")
+                recv_chunks.append(processed_chunk_buf)
             # Reconstruct using the received chunks
             reconstructed_image = self.reconstruct_array(recv_chunks)
             return reconstructed_image
         else:
+            
             print("ENTERED ELSE FOR FIRST TIME-")
+            chunk_buf = np.empty(chunk_size,dtype=np.uint32)
             # chunk = self.comm.recv(source=0, tag=0)
-            req = self.comm.irecv(source=0, tag=0)
+            req = self.comm.Irecv(chunk_buf,source=0, tag=0)
             req.wait()
             print(f"RECV ACK RECIEVED FROM 0")
-            cv2.imwrite(f"recived_chunk_{self.comm.rank}.png",req)
+            chunk_temp = chunk_buf.astype(np.uint8)
+            #received_chunk = req.recv() 
+            cv2.imwrite(f"recived_chunk_{self.comm.rank}.png", chunk_temp)
             #chunk = image_array[start_row:end_row, :, :]
-            processed_chunk = self.process_chunk(chunk, service_num, **self.params)
+            processed_chunk = self.process_chunk(chunk_buf, service_num, **self.params)
+            processed_chunk_temp = processed_chunk.astype(np.uint8)
             # Save the chunk as an image
-            cv2.imwrite(f"processed_chunk_{self.comm.rank}.png", processed_chunk)
+            cv2.imwrite(f"processed_chunk_{self.comm.rank}.png", processed_chunk_temp)
             # Gather processed chunks on rank 0
             # self.comm.send(processed_chunk, dest=0, tag=0)
-            req = self.comm.isend(processed_chunk, dest=0, tag=11)
-            req.wait()
+            req = self.comm.Isend(processed_chunk,0,11)
+            #req.wait()
             print(f"SEND ACK RECIEVED FROM 0")
     def get_image (self,task_id):
         cv2.imwrite('IQ.jpg',self.storage.get_image(task_id))
