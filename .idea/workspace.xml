@@ -5,22 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6792ad8d-3dad-4b31-89ba-08af24a32549" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/run_mpi.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SB.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/IQ.jpg" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/chunk_1.png" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/chunk_2.png" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/chunk_3.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/chunk_4.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/processed_chunk_1.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/processed_chunk_2.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/processed_chunk_3.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/processed_chunk_4.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/image_to_be_processed.png" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/processing_node.py" beforeDir="false" afterPath="$PROJECT_DIR$/processing_node.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/recived_chunk_1.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/recived_chunk_2.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/recived_chunk_3.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/recived_chunk_4.png" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
