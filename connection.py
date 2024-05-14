@@ -13,15 +13,15 @@ class Connection:
     request = json.loads(body)
     task_id = request['task_id']
     service_num = request['service_num']
-    status = subprocess.run(["mpiexec","-n","5","python", "processing_node.py", f"{task_id}", f"{service_num}"])
+    client_address = request['client_address']
+    status = subprocess.run(["mpiexec","-n","5","python", "processing_node.py", f"{task_id}", f"{service_num}"],check=True)
     if status.returncode == 0:
       self.channel.ack(method)
+      self.channel.publish('responses', json.dumps({'task_id': task_id, 'client_address': client_address}))
     else:
       print("Task failed")
 
 if __name__ == "__main__":
-    # connection = Connection()
-    # print("Listening for requests")
     status = subprocess.run(
         [
             "mpiexec",

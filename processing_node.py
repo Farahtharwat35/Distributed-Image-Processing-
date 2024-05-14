@@ -163,6 +163,7 @@ class ProcessingNode:
             # Reconstruct using the received chunks
             reconstructed_image = self.reconstruct_array(recv_chunks)
             reconstructed_image.save("reconstructed_image.png")
+            self.storage.upload_image(reconstructed_image, task_id)
             return reconstructed_image
         else:
             chunk = self.comm.recv(source=0, tag=0)
