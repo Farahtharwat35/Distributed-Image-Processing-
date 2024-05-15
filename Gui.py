@@ -4,6 +4,9 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWid
     QHBoxLayout, QComboBox
 from PyQt5.QtCore import Qt, QMimeData
 from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QDragEnterEvent, QDropEvent, QDragMoveEvent, QPixmap
+import requests
+import base64
+import json
 
 
 class ClientGui(QMainWindow):
@@ -204,22 +207,31 @@ class ClientGui(QMainWindow):
             event.ignore()  # Ignore the drop event if there are no URLs
 
     def on_submit_clicked(self):
-        #print("blabla")
-        #Once processing is done, show the result window
-        self.show_result_window("icon.png")
+        #send request to server
+        print(f'preparing to send request to server....')
+        image_path = self.file_path_label.text()
+        processing_option = self.additional_options.currentText()
+        with open(image_path, image_path) as f:
+            image_bytes = f.read()
+        image_base64 = base64.b64encode(image_bytes)
+        request={'image': image_bytes, 'service_num': processing_option}
+        response=requests.post('http://localhost:8000', data=json.dumps(request), headers={'Content-Type': 'application/json'})
+        print(f'server response: {response.text}')
+        self.show_result_window(response.text)
         
-    def show_result_window(self, image_path):
+        
+    def show_result_window(self, respone_text):
         # This method creates a new window to display the processed image
-        self.result_window = ResultWindow(image_path)
+        self.result_window = ResultWindow(respone_text)
         self.result_window.show()
 
 
 class ResultWindow(QWidget):
-    def __init__(self, image_path, parent=None):
+    def __init__(self, title, parent=None):
         super(ResultWindow, self).__init__(parent)
 
         # Set window title and icon
-        self.setWindowTitle("Distributed Image Processor")
+        self.setWindowTitle(f'Processed Image: {title}')
         self.setWindowIcon(QIcon("icon.png"))
 
         # Set the background color
