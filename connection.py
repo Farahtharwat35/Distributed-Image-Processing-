@@ -17,6 +17,7 @@ class Connection:
     status = subprocess.run(["mpiexec","-n","5","python", "processing_node.py", f"{task_id}", f"{service_num}"],check=True)
     if status.returncode == 0:
       self.channel.ack(method)
+      print("Task completed")
     else:
       print("Task failed")
 

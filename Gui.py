@@ -211,7 +211,7 @@ class ClientGui(QMainWindow):
         # send request to server
         print(f'preparing to send request to server....')
         image_path = self.file_path_label.text()
-        processing_option = self.additional_options.currentText()
+        option= self.additional_options.currentText()
         processing_options = {
             "Inversion": 1,
             "Saturation": 2,
@@ -240,7 +240,7 @@ class ClientGui(QMainWindow):
         with open(image_path, 'rb') as f:
             image_bytes = f.read()
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-        service_num = processing_options.get(processing_option, "Invalid option")
+        service_num=processing_options[option]
         request = {'image': image_base64, 'service_num': service_num}
         response = requests.post('http://localhost:8000', data=json.dumps(request),
                                  headers={'Content-Type': 'application/json'})

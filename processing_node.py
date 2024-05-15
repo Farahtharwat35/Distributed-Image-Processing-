@@ -8,6 +8,9 @@ from numpy import asarray
 import cloudCredentials
 import os
 import argparse
+import time
+import io
+import base64
 class ProcessingNode:
     def __init__(self, **kwargs):
         self.comm = MPI.COMM_WORLD
@@ -142,8 +145,7 @@ class ProcessingNode:
     def run(self, task_id, kernel_size=3, service_num=1):
         image=self.storage.get_image(task_id)
         cv2.imwrite(f"original_image.png", image)
-        for i in range(1, 100):
-            continue
+        time.sleep(4)
         image_array = self.convert_image_to_array("original_image.png")
         chunk_size_row = image_array.shape[0] // (self.size - 1)
         chunk_size_col = image_array.shape[1]
@@ -181,6 +183,8 @@ class ProcessingNode:
             # Reconstruct using the received chunks
             reconstructed_image = self.reconstruct_array(recv_chunks)
             reconstructed_image.save("reconstructed_image.png")
+            # Upload the reconstructed image to Google Cloud Storage
+            reconstructed_image = np.array(reconstructed_image)
             self.storage.upload_image(reconstructed_image, task_id)
             return reconstructed_image
         else:
