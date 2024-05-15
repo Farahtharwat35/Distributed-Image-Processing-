@@ -22,7 +22,6 @@ class ProcessingNode:
             2: ("saturate", {"value": kwargs.get("value", 0)}),
             3: ("rgb_to_gray", {}),
             4: ("gray_to_rgb", {}),
-            5: ("fourier_transform", {}),
             6: (
                 "apply_lowpass_filter",
                 {
@@ -85,6 +84,25 @@ class ProcessingNode:
                     "constant": kwargs.get("constant", 0),
                 },
             ),
+            21: ("apply_lowpass_filter",
+                {
+                    "cutoff_frequency": kwargs.get("cutoff_frequency", 50),
+                    "order": kwargs.get("order", 2),
+                },),
+            22: ("apply_highpass_filter",
+                 {
+                    "cutoff_frequency": kwargs.get("cutoff_frequency", 50),
+                    "order": kwargs.get("order", 2),
+                },),
+            23: ("mean_adaptive_threshold",
+                {
+                    "block_size": kwargs.get("block_size", 2),
+                    "constant": kwargs.get("constant", 0),
+                },
+                ),
+            24: ("gaussian_threshold",
+                {"threshold_value": kwargs.get("threshold_value", 128)},
+                ),
         }
 
         if service_num in service_methods:
