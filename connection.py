@@ -17,24 +17,9 @@ class Connection:
     status = subprocess.run(["mpiexec","-n","5","python", "processing_node.py", f"{task_id}", f"{service_num}"],check=True)
     if status.returncode == 0:
       self.channel.ack(method)
-      self.channel.publish('responses', json.dumps({'task_id': task_id, 'client_address': client_address}))
     else:
       print("Task failed")
 
 if __name__ == "__main__":
-    status = subprocess.run(
-        [
-            "mpiexec",
-            "-n",
-            "5",
-            "python",
-            "processing_node.py",
-            "30b93014-038c-4ba2-bfb1-a5632cae00c4",
-            str(12),
-        ]
-    )
-    if status.returncode == 0:
-        print("Task completed successfully")
-    else:
-        print("Task failed")
+    consumer = Connection()
 
