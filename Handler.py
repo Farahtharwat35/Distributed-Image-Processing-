@@ -3,11 +3,11 @@ import json
 from threading import Thread
 import uuid
 import Channel
-import websockets
 import cloudCredentials
 import asyncio
 import cv2
 import base64
+import websockets
 
 class RequestHandler(BaseHTTPRequestHandler):
   def __init__(self, *args,  storage, **kwargs):
@@ -29,7 +29,10 @@ class RequestHandler(BaseHTTPRequestHandler):
     encoded_image_as_str = request_data['image']
     self.storage.upload_image(encoded_image_as_str, task_id)
     message = {'client_address': client_address, 'task_id': task_id, 'service_num': service_num}
-    self.channel.publish('responses', json.dumps(message))
+    try:
+      self.channel.publish('requests', json.dumps(message))
+    except Exception as e:
+      print(f"Failed to send request to workers: {e}")
     result=task_id
     self.send_response(200)
     self.send_header('Content-type', 'application/json')
@@ -76,11 +79,7 @@ class Node:
 if __name__ == "__main__":
   storage = cloudCredentials.Storage()
   node = Node(('localhost', 8000),storage)
-  request_thread = Thread(target=node.run)
-  response_thread = Thread(target=node.ResponseHandler)
-  request_thread.start()
-  response_thread.start()
-  
+  node.run()
       
     
 

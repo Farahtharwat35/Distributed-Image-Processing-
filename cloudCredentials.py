@@ -28,6 +28,7 @@ class Storage:
     # Upload the image to Google Cloud Storage
     blob = self.bucket.blob(task_id + ".png")
     blob.upload_from_string(encoded_image_bytes, content_type="image/png")
+    blob.content_disposition = "attachment"
     blob.patch()
         
   def create_signed_url(self, task_id):
