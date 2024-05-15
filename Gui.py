@@ -3,7 +3,8 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QFileDialog, QPushButton, \
     QHBoxLayout, QComboBox
 from PyQt5.QtCore import Qt, QMimeData
-from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QDragEnterEvent, QDropEvent, QDragMoveEvent, QPixmap
+from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QDragEnterEvent, QDropEvent, QDragMoveEvent, QPixmap, QDesktopServices
+from PyQt5.QtCore import QUrl
 import requests
 import base64
 import json
@@ -211,10 +212,10 @@ class ClientGui(QMainWindow):
         print(f'preparing to send request to server....')
         image_path = self.file_path_label.text()
         processing_option = self.additional_options.currentText()
-        with open(image_path, image_path) as f:
+        with open(image_path, 'rb') as f:
             image_bytes = f.read()
-        image_base64 = base64.b64encode(image_bytes)
-        request={'image': image_bytes, 'service_num': processing_option}
+        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+        request={'image': image_base64, 'service_num': processing_option}
         response=requests.post('http://localhost:8000', data=json.dumps(request), headers={'Content-Type': 'application/json'})
         print(f'server response: {response.text}')
         self.show_result_window(response.text)
@@ -259,10 +260,10 @@ class ResultWindow(QWidget):
         # Create a horizontal box layout for the download button
         hbox_layout = QHBoxLayout()
         hbox_layout.setAlignment(Qt.AlignCenter)
-
+        image_url =''
         # Add the download button to the horizontal layout
         self.download_button = QPushButton("Download", self)
-        self.download_button.clicked.connect(lambda: self.download_image(image_path))
+        self.download_button.clicked.connect(lambda: self.download_image(image_url))
         self.download_button.setFont(text_font)
         self.download_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
                                            " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
@@ -273,11 +274,12 @@ class ResultWindow(QWidget):
         vbox_layout.addLayout(hbox_layout)
 
     def download_image(self, image_path):
-        options = QFileDialog.Options()
-        save_path, _ = QFileDialog.getSaveFileName(self, "Save Image", "",
-                                                   "Images (*.jpg *.png *.jpeg)", options=options)
-        if save_path:
-            shutil.copyfile(image_path, save_path)
+        QDesktopServices.openUrl(QUrl(image_path))
+        # options = QFileDialog.Options()
+        # save_path, _ = QFileDialog.getSaveFileName(self, "Save Image", "",
+        #                                            "Images (*.jpg *.png *.jpeg)", options=options)
+        # if save_path:
+        #     shutil.copyfile(image_path, save_path)
 
 
 def main():
