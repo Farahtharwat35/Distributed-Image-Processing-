@@ -3,6 +3,7 @@ import datetime
 import numpy as np
 import cv2
 import base64
+import time
 
 class Storage:
   def __init__(self):
@@ -28,6 +29,7 @@ class Storage:
     # Upload the image to Google Cloud Storage
     blob = self.bucket.blob(task_id + ".png")
     blob.upload_from_string(encoded_image_bytes, content_type="image/png")
+    time.sleep(4)
     blob.content_disposition = "attachment"
     blob.patch()
         
@@ -43,7 +45,7 @@ class Storage:
     return url
     
   def get_image(self, task_id):
-    blob = self.bucket.blob(task_id)
+    blob = self.bucket.blob(task_id+".png")
     image_data =blob.download_as_string()
     nparr = np.frombuffer(image_data, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)

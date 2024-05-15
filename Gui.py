@@ -3,7 +3,8 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QFileDialog, QPushButton, \
     QHBoxLayout, QComboBox
 from PyQt5.QtCore import Qt, QMimeData
-from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QDragEnterEvent, QDropEvent, QDragMoveEvent, QPixmap, QDesktopServices
+from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QDragEnterEvent, QDropEvent, QDragMoveEvent, QPixmap, \
+    QDesktopServices
 from PyQt5.QtCore import QUrl
 import requests
 import base64
@@ -99,12 +100,13 @@ class ClientGui(QMainWindow):
         # Dropdown menu for processing options
         self.processing_options = QComboBox(self)
         self.processing_options.addItems(["Processing family", "Color Manipulation", "Edge Detection",
-                                          "Fourier Domain Transform", "Thresholding", "Noise Removal","General Filters"])
+                                          "Fourier Domain Transform", "Thresholding", "Noise Removal",
+                                          "General Filters"])
         self.processing_options.setCurrentIndex(0)
         self.processing_options.setFont(smaller_text_font)
         self.processing_options.setStyleSheet("QComboBox { border-radius: 10px; border: 2px solid #00cf81; "
                                               "background-color: #1c1e1c; color: #7d7d7d;}")
-        self.processing_options.setFixedSize(800,50)
+        self.processing_options.setFixedSize(800, 50)
         self.processing_options.hide()
         hbox2_layout.addWidget(self.processing_options)
 
@@ -127,7 +129,7 @@ class ClientGui(QMainWindow):
         self.additional_options.setFont(smaller_text_font)
         self.additional_options.setStyleSheet("QComboBox { border-radius: 10px; border: 2px solid #00cf81; "
                                               "background-color: #1c1e1c; color: #7d7d7d;}")
-        self.additional_options.setFixedSize(800,50)
+        self.additional_options.setFixedSize(800, 50)
         self.additional_options.hide()
         hbox3_layout.addWidget(self.additional_options)
 
@@ -139,7 +141,7 @@ class ClientGui(QMainWindow):
 
         # Add the submit button to the horizontal layout
         self.submit_button = QPushButton("Submit", self)
-        #self.submit_button.clicked.connect(process_image)
+        # self.submit_button.clicked.connect(process_image)
         # Connect the submit button to the 'on_submit_clicked' method
         self.submit_button.clicked.connect(self.on_submit_clicked)
         self.submit_button.setFont(text_font)
@@ -158,24 +160,23 @@ class ClientGui(QMainWindow):
             main_window.processing_options.show()
             main_window.processing_family_label.show()
 
-
     def update_second_combobox(main_window):
         # Dictionary mapping the first combobox options to the second combobox options
         options_dict = {
-            "Color Manipulation": ["Inversion", "Saturation", "RGB to Gray","Gray to RGB"],
+            "Color Manipulation": ["Inversion", "Saturation", "RGB to Gray", "Gray to RGB"],
 
-            "Thresholding":["Binary thresholding", "Otsu thresholding", "Gaussian thresholding",
-                            "Mean-adaptive thresholding", "Gaussian-adaptive thresholding"],
+            "Thresholding": ["Binary thresholding", "Otsu thresholding", "Gaussian thresholding",
+                             "Mean-adaptive thresholding", "Gaussian-adaptive thresholding"],
 
-            "Edge Detection":["Sobel edge detection", "Prewitt edge detection", "Roberts edge detection",
-                              "Canny edge detection", "Hough transform", "Harris corner detection"],
+            "Edge Detection": ["Sobel edge detection", "Prewitt edge detection", "Roberts edge detection",
+                               "Canny edge detection", "Hough transform", "Harris corner detection"],
 
             "General Filters": ["Blurring", "Sharpening"],
 
-            "Noise Removal":["Remove Gaussian noise","Remove salt & pepper noise"],
+            "Noise Removal": ["Remove Gaussian noise", "Remove salt & pepper noise"],
 
-            "Fourier Domain Transform":["Butterworth low pass filter","Butterworth high pass filter",
-                                        "Low pass filter","High pass filter"]
+            "Fourier Domain Transform": ["Butterworth low pass filter", "Butterworth high pass filter",
+                                         "Low pass filter", "High pass filter"]
         }
 
         # Get the selected processing family
@@ -187,7 +188,6 @@ class ClientGui(QMainWindow):
         main_window.additional_options_label.show()
         main_window.additional_options.show()
         main_window.submit_button.show()
-
 
     def dragEnterEvent(self, event: QDragMoveEvent):
         if event.mimeData().hasUrls():
@@ -208,19 +208,45 @@ class ClientGui(QMainWindow):
             event.ignore()  # Ignore the drop event if there are no URLs
 
     def on_submit_clicked(self):
-        #send request to server
+        # send request to server
         print(f'preparing to send request to server....')
         image_path = self.file_path_label.text()
-        processing_option = self.additional_options.currentText()
+        option= self.additional_options.currentText()
+        processing_options = {
+            "Inversion": 1,
+            "Saturation": 2,
+            "RGB to Gray": 3,
+            "Gray to RGB": 4,
+            "Binary thresholding": 18,
+            "Otsu thresholding":19,
+            "Gaussian thresholding":24,
+            "Mean-adaptive thresholding":23,
+            "Gaussian-adaptive thresholding": 20,
+            "Sobel edge detection": 12,
+            "Prewitt edge detection": 13,
+            "Roberts edge detection": 14,
+            "Canny edge detection": 15,
+            "Hough transform": 16,
+            "Harris corner detection": 17,
+            "Blurring": 8,
+            "Sharpening": 9,
+            "Remove Gaussian noise": 10,
+            "Remove salt & pepper noise": 11,
+            "Butterworth low pass filter": 6,
+            "Butterworth high pass filter": 7,
+            "Low pass filter": 21,
+            "High pass filter": 22,
+        }
         with open(image_path, 'rb') as f:
             image_bytes = f.read()
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-        request={'image': image_base64, 'service_num': processing_option}
-        response=requests.post('http://localhost:8000', data=json.dumps(request), headers={'Content-Type': 'application/json'})
+        service_num=processing_options[option]
+        request = {'image': image_base64, 'service_num': service_num}
+        response = requests.post('http://localhost:8000', data=json.dumps(request),
+                                 headers={'Content-Type': 'application/json'})
         print(f'server response: {response.text}')
         self.show_result_window(response.text)
-        
-        
+
     def show_result_window(self, respone_text):
         # This method creates a new window to display the processed image
         self.result_window = ResultWindow(respone_text)
@@ -260,7 +286,7 @@ class ResultWindow(QWidget):
         # Create a horizontal box layout for the download button
         hbox_layout = QHBoxLayout()
         hbox_layout.setAlignment(Qt.AlignCenter)
-        image_url =''
+        image_url = ''
         # Add the download button to the horizontal layout
         self.download_button = QPushButton("Download", self)
         self.download_button.clicked.connect(lambda: self.download_image(image_url))
@@ -287,10 +313,11 @@ def main():
     main_window = ClientGui()
     main_window.show()
     sys.exit(app.exec_())
-    #client = ClientGUI('http://localhost:8000')
+    # client = ClientGUI('http://localhost:8000')
     # server = WebSocketServer(('localhost', 8765),client)
     # server_thread = threading.Thread(target=server.start_server)
     # server_thread.start()
+
 
 if __name__ == "__main__":
     main()
