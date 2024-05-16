@@ -1,5 +1,6 @@
 import shutil
 import sys
+import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QFileDialog, QPushButton, \
     QHBoxLayout, QComboBox
 from PyQt5.QtCore import Qt, QMimeData
@@ -9,6 +10,7 @@ from PyQt5.QtCore import QUrl
 import requests
 import base64
 import json
+
 
 
 class ClientGui(QMainWindow):
@@ -245,11 +247,27 @@ class ClientGui(QMainWindow):
         response = requests.post('http://localhost:8000', data=json.dumps(request),
                                  headers={'Content-Type': 'application/json'})
         print(f'server response: {response.text}')
-        self.show_result_window(response.text)
+        # Creating a thread for task_status
+        task_status_thread = threading.Thread(target=self.task_status, args=(response.text,))
+        task_status_thread.start()
+    
+    def task_status(self, task_id):
+        try:
+            from Notification_System import NotificationSystem
+            notification_system = NotificationSystem(task_id)
+            poll_thread = threading.Thread(target=notification_system.poll_task)
+            poll_thread.start()
+        except Exception as e :
+            print(f"Failed to start polling thread: {e}")
 
-    def show_result_window(self, respone_text):
+    def show_result_window(self,image_status=None,processed_image=None):
         # This method creates a new window to display the processed image
-        self.result_window = ResultWindow(respone_text)
+        if (image_status == None):
+            self.result_window = ResultWindow("NOT PROCESSED YET") 
+        elif (image_status == "processed"):
+            self.result_window = ResultWindow("PROCESSED", processed_image)
+        else:
+            self.result_window = ResultWindow(image_status)  
         self.result_window.show()
 
 
@@ -306,11 +324,10 @@ class ResultWindow(QWidget):
         #                                            "Images (*.jpg *.png *.jpeg)", options=options)
         # if save_path:
         #     shutil.copyfile(image_path, save_path)
-
-
+        
+app = QApplication(sys.argv)
+main_window = ClientGui()
 def main():
-    app = QApplication(sys.argv)
-    main_window = ClientGui()
     main_window.show()
     sys.exit(app.exec_())
     # client = ClientGUI('http://localhost:8000')

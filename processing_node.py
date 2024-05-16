@@ -11,6 +11,7 @@ import argparse
 import time
 import io
 import base64
+from redis_db import redisDB
 class ProcessingNode:
     def __init__(self, **kwargs):
         self.comm = MPI.COMM_WORLD
@@ -143,6 +144,10 @@ class ProcessingNode:
         return image
 
     def run(self, task_id, kernel_size=3, service_num=1):
+        redisDB.update_image_status(task_id, {"status" : 'in progress (processing)',
+                                           "link" : 'None'})
+        test_r= redisDB.pull(task_id)
+        print("PROCESSING STATUS TEST : " , test_r)
         image=self.storage.get_image(task_id)
         cv2.imwrite(f"original_image.png", image)
         time.sleep(4)
@@ -186,7 +191,12 @@ class ProcessingNode:
             # Upload the reconstructed image to Google Cloud Storage
             reconstructed_image = np.array(reconstructed_image)
             self.storage.upload_image(reconstructed_image, task_id)
-            return reconstructed_image
+            img_link=self.storage.create_signed_url(task_id)
+            redisDB.update_image_status(task_id, {"status" : 'processed',
+                                           "link" : img_link})
+            test_r=redisDB.pull(task_id)
+            print("PROCESSED STATUS TEST : " , test_r)
+            #return reconstructed_image
         else:
             chunk = self.comm.recv(source=0, tag=0)
             cv2.imwrite(f"recived_chunk_{self.comm.rank}.png", chunk)
