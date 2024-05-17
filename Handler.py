@@ -29,7 +29,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         test_r = None
         # ttl = None
         try:
-            redisDB.update_image_status(task_id, {"status": 'received but not processed yet',
+            redisDB.update_image_status(task_id, {"status": 'Received But Not Processed Yet',
                                                   "link": 'None'})
             test_r = redisDB.pull(task_id)
             print("RECEIVED STATUS TEST : ", test_r)
@@ -62,5 +62,6 @@ if __name__ == "__main__":
     storage = cloudCredentials.Storage()
     node = Node(('localhost', 8000), storage)
     # Starting a new thread for handling requests
-    request_thread = Thread(target=node.run)
-    request_thread.start()
+    # request_thread = Thread(target=node.run)
+    # request_thread.start()
+    node.run()

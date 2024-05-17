@@ -18,7 +18,7 @@ class Channel():
    
     def consume(self, queue, callback):
         self.channel.queue_declare(queue=queue, durable=True)
-        self.channel.basic_qos(prefetch_count=1)
+        self.channel.basic_qos(prefetch_count=4)
         self.channel.basic_consume(queue=queue, on_message_callback=callback, auto_ack=False)
         self.channel.start_consuming()
 
