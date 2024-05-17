@@ -158,7 +158,7 @@ class ProcessingNode:
         # print("COUNTER INTIAL : ", ProcessingNode.counter)
         # print("SIZE : ", self.size)
         # if ProcessingNode.counter == self.size:
-        redisDB.update_image_status(task_id, {"status": 'In Progress (Processing)',
+        redisDB.update_image_status(task_id, {"status": "In Progress (Processing)",
                                               "link": 'None'})
         # ProcessingNode.counter = 0
         test_r = redisDB.pull(task_id)
@@ -177,7 +177,7 @@ class ProcessingNode:
             self.storage.upload_image(reconstructed_image, task_id)
             time.sleep(5)
             img_link = self.storage.create_signed_url(task_id)
-            redisDB.update_image_status(task_id, {"status": 'processed',
+            redisDB.update_image_status(task_id, {"status": "Processed",
                                                   "link": img_link})
             test_r = redisDB.pull(task_id)
             print("PROCESSED STATUS TEST : ", test_r)
@@ -232,7 +232,7 @@ class ProcessingNode:
                 # print("COUNTER : ", ProcessingNode.counter)
                 # if ProcessingNode.counter == self.size:
 
-                redisDB.update_image_status(task_id, {"status": 'Processed',
+                redisDB.update_image_status(task_id, {"status": "Processed",
                                                       "link": img_link})
                 test_r = redisDB.pull(task_id)
                 print("PROCESSED STATUS TEST : ", test_r)

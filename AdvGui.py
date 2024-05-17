@@ -14,6 +14,7 @@ import threading
 import time
 import cloudCredentials
 import cv2
+import imghdr
 
 class ClientGui(QMainWindow):
     def __init__(self):
@@ -358,13 +359,7 @@ class ResultWindow(QWidget):
         self.hbox_layout_res.setAlignment(Qt.AlignCenter)
 
         self.image_label = QLabel(self)
-        image_element = QImage()
-        image_element.loadFromData(self.get_image)
-        pixmap = QPixmap(image_element)
-        self.image_label.setPixmap(pixmap)
-        self.image_label.setScaledContents(True)
         self.vbox_layout_res.addWidget(self.image_label)
-
         self.image_label.hide()
 
         self.vbox_layout_res.addSpacing(30)
@@ -403,14 +398,15 @@ class ResultWindow(QWidget):
         self.progress_bar.deleteLater()
         self.progress_label.deleteLater()
 
-        get_image = self.storage.get_image(self.title)
-        cv2.imshow("image",get_image)
-        cv2.waitKey(0)
+        self.download_button.show()
         
-        image_element = QImage()
-        image_element.loadFromData(get_image)
-        pixmap = QPixmap(image_element)
-        self.image_label.setPixmap(pixmap)
+        get_image = self.storage.get_image(self.title)
+        get_image = cv2.cvtColor(get_image, cv2.COLOR_BGR2RGB)
+        qimage = QImage(get_image.data, get_image.shape[1], get_image.shape[0], QImage.Format_RGB888)
+
+        image_element = QPixmap.fromImage(qimage)
+
+        self.image_label.setPixmap(image_element)
         self.image_label.setScaledContents(True)
         self.image_label.show()
         print("Image displayed")
@@ -419,6 +415,14 @@ class ResultWindow(QWidget):
         print("Download button displayed")
 
     def update_progress_bar(self, status, link=None):
+        if status == "in progress (processing)":
+            status = "In Progress (Processing)"
+        elif status == "task not processed yet":
+            status = "Task Not Processed Yet"
+        elif status == "received but not processed yet":
+            status = "Received But Not Processed Yet"
+        elif status == "processed":
+            status = "Processed"
         status_dict = {"Task Not Processed Yet": 10, "Received But Not Processed Yet": 20, "In Progress (Processing)": 60,
                        "Processed": 100}
         self.progress_label.setText(status)
