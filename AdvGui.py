@@ -4,12 +4,16 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWid
     QHBoxLayout, QComboBox
 from PyQt5.QtCore import Qt, QMimeData
 from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QDragEnterEvent, QDropEvent, QDragMoveEvent, QPixmap, \
-    QDesktopServices
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
+    QDesktopServices, QImage
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QProgressBar
 from PyQt5.QtCore import QUrl
 import requests
 import base64
 import json
+import threading
+import time
+import cloudCredentials
+import cv2
 
 class ClientGui(QMainWindow):
     def __init__(self):
@@ -300,6 +304,12 @@ class ClientGui(QMainWindow):
 class ResultWindow(QWidget):
     def __init__(self, title, parent=None):
         super(ResultWindow, self).__init__(parent)
+        self.storage = cloudCredentials.Storage()
+        self.title = title.replace('"', '')
+        task_status_thread = threading.Thread(target=self.task_status, args=(title,))
+        task_status_thread.start()
+        self.link = None
+        self.get_image = None
 
         # Set window title and icon
         self.setWindowTitle(f'Processed Image: {title}')
@@ -309,51 +319,114 @@ class ResultWindow(QWidget):
         self.setStyleSheet("background-color: #1c1e1c;")
 
         # Set the font for the title and other text
-        title_font = QFont("consolas", 24, QFont.Bold)
-        text_font = QFont("roboto", 16)
+        self.title_font = QFont("consolas", 24, QFont.Bold)
+        self.text_font = QFont("roboto", 16)
 
         # Create a vertical box layout for the main window
-        vbox_layout = QVBoxLayout(self)
-        vbox_layout.setAlignment(Qt.AlignTop)
-        vbox_layout.setContentsMargins(300, 150, 300, 150)
+        self.vbox_layout_res = QVBoxLayout(self)
+        self.vbox_layout_res.setAlignment(Qt.AlignTop)
+        self.vbox_layout_res.setContentsMargins(300, 150, 300, 150)
 
         # Add a title label to the layout
-        title_label = QLabel("Here's your result...", self)
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("color: #fafafa;")
-        title_label.setFont(title_font)
-        vbox_layout.addWidget(title_label)
+        self.progress_bar=QProgressBar(self)
+        self.progress_bar.setRange(0,100)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid grey;
+                border-radius: 5px;
+                text-align: center;
+            }
 
-        vbox_layout.addSpacing(100)
+            QProgressBar::chunk {
+                background-color: #00cf81;
+                width: 20px;
+            }
+        """)
+        self.progress_bar.setFixedSize(500, 50)
+        self.vbox_layout_res.addWidget(self.progress_bar)
+        self.vbox_layout_res.addSpacing(50)
 
-        vbox_layout.addSpacing(30)
+        self.progress_label =QLabel("progress",self)
+        self.progress_label.setFont(self.text_font)
+        self.progress_label.setAlignment(Qt.AlignCenter)
+        self.progress_label.setStyleSheet("QLabel { color : #00cf81; }")
+        self.vbox_layout_res.addWidget(self.progress_label)
+
+        
         # Create a horizontal box layout for the download button
-        hbox_layout = QHBoxLayout()
-        hbox_layout.setAlignment(Qt.AlignCenter)
-        image_url = ''
-        # Add the download button to the horizontal layout
+        self.hbox_layout_res = QHBoxLayout(self)
+        self.hbox_layout_res.setAlignment(Qt.AlignCenter)
+
+        self.image_label = QLabel(self)
+        image_element = QImage()
+        image_element.loadFromData(self.get_image)
+        pixmap = QPixmap(image_element)
+        self.image_label.setPixmap(pixmap)
+        self.image_label.setScaledContents(True)
+        self.vbox_layout_res.addWidget(self.image_label)
+
+        self.image_label.hide()
+
+        self.vbox_layout_res.addSpacing(30)
+
         self.download_button = QPushButton("Download", self)
-        self.download_button.clicked.connect(lambda: self.download_image(image_url))
-        self.download_button.setFont(text_font)
+        self.hbox_layout_res.addWidget(self.download_button)
+        self.download_button.clicked.connect(self.download_image)
+        self.download_button.setFont(self.text_font)
         self.download_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
                                            " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
         self.download_button.setFixedSize(200, 50)
-        hbox_layout.addWidget(self.download_button)
+        self.download_button.setEnabled(True)
+        self.download_button.hide()
+        self.vbox_layout_res.addLayout(self.hbox_layout_res)
+        
 
-        # Add the horizontal layout to the main vertical layout
-        vbox_layout.addLayout(hbox_layout)
-
-    def download_image(self, image_path):
-        QDesktopServices.openUrl(QUrl(image_path))
+    def download_image(self):
+        QDesktopServices.openUrl(QUrl(self.link))
+        print("Image downloaded")
         # options = QFileDialog.Options()
         # save_path, _ = QFileDialog.getSaveFileName(self, "Save Image", "",
         #                                            "Images (*.jpg *.png *.jpeg)", options=options)
         # if save_path:
         #     shutil.copyfile(image_path, save_path)
+    def task_status(self, task_id):
+        try:
+            from Notification_System import NotificationSystem
+            notification_system = NotificationSystem(task_id)
+            poll_thread = threading.Thread(target=notification_system.poll_task , args=(self,))
+            poll_thread.start()
+            print("Polling thread started")
+        except Exception as e :
+            print(f"Failed to start polling thread: {e}")
 
-       
+    def show_image_and_download_button(self):
+        self.progress_bar.deleteLater()
+        self.progress_label.deleteLater()
 
+        get_image = self.storage.get_image(self.title)
+        cv2.imshow("image",get_image)
+        cv2.waitKey(0)
+        
+        image_element = QImage()
+        image_element.loadFromData(get_image)
+        pixmap = QPixmap(image_element)
+        self.image_label.setPixmap(pixmap)
+        self.image_label.setScaledContents(True)
+        self.image_label.show()
+        print("Image displayed")
 
+        self.download_button.show()
+        print("Download button displayed")
+
+    def update_progress_bar(self, status, link=None):
+        status_dict = {"Task Not Processed Yet": 10, "Received But Not Processed Yet": 20, "In Progress (Processing)": 60,
+                       "Processed": 100}
+        self.progress_label.setText(status)
+        self.progress_bar.setValue(status_dict[status])
+        if status == "Processed":
+            self.link = link
+            self.show_image_and_download_button()
+            
 
 def main():
     app = QApplication(sys.argv)

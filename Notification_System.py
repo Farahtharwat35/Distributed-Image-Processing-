@@ -32,16 +32,18 @@ class NotificationSystem():
                 if (new_status != old_status):
                     old_status = new_status
                     # Check if the status is "processed"
-                    if new_status == "processed":
+                    if new_status == "Processed":
                         task_data = redisDB.pull(self.task_id_responsibility)
                         link = task_data.get("link")
                         #----------TODO : CALL HERE THE FUNCTION THAT WILL UPDATE THE STATUS (remove TODO and write instead)---------------------
                         #main_window.show_result_window(status, link)
+                        main_window.update_progress_bar(new_status, link)
                         print("FROM NS : --- Task completed successfully")
                         print("FROM NS : --- Link to the processed image:", link)
                         return 
                     else:
                         #----------TODO : CALL HERE THE FUNCTION THAT WILL UPDATE THE STATUS (remove TODO and write instead)---------------------
+                        main_window.update_progress_bar(new_status)
                         print(f"FROM NS :--- {new_status} ")
                         # Sleep for a short interval before polling again
                     time.sleep(0.03)
@@ -50,6 +52,7 @@ class NotificationSystem():
                 if flag:
                     flag=False
                     #----------TODO : CALL HERE THE FUNCTION THAT WILL UPDATE THE STATUS (remove TODO and write instead)---------------------
+                    main_window.update_progress_bar("Task Not Processed Yet")
                     print("FROM NS :--- Task Not Processed Yet")
                     # Sleep for a short interval before polling again
                     time.sleep(0.03)
