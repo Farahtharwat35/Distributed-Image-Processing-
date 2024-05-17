@@ -32,7 +32,7 @@ class NotificationSystem():
                 if (new_status != old_status):
                     old_status = new_status
                     # Check if the status is "processed"
-                    if new_status == "processed":
+                    if new_status == "processed" or new_status == "Processed":
                         task_data = redisDB.pull(self.task_id_responsibility)
                         link = task_data.get("link")
                         #----------TODO : CALL HERE THE FUNCTION THAT WILL UPDATE THE STATUS (remove TODO and write instead)---------------------

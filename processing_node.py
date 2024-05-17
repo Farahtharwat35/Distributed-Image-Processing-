@@ -31,7 +31,7 @@ class ProcessingNode:
     def process_chunk(self, chunk, service_num, **kwargs):
         service_methods = {
             1: ("invert", {}),
-            2: ("saturate", {"value": kwargs.get("value", 0)}),
+            2: ("saturate", {"saturation_scale": kwargs.get("value", 0)}),
             3: ("rgb_to_gray", {}),
             4: ("gray_to_rgb", {}),
             6: (

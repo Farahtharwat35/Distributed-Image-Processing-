@@ -8,17 +8,48 @@ class Utilities:
         return cv2.bitwise_not(image)
 
     @staticmethod
-    def saturate(image, value):
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        hsv[:,:,1] += value
-        return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    def saturate(image, saturation_scale=1.5):
+        """
+        Increase the saturation of an image while keeping the number of channels the same.
+        
+        Parameters:
+            image (numpy.ndarray): Input image in BGR format.
+            saturation_scale (float): Scale factor for saturation. Default is 1.5.
+        
+        Returns:
+            numpy.ndarray: Image with increased saturation.
+        """
+        # Check if the input image is valid
+        if image is None:
+            raise ValueError("The input image is not valid")
+        
+        # Convert the image from BGR to HSV color space
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        
+        # Split the HSV image into its components
+        h, s, v = cv2.split(hsv_image)
+        
+        # Increase the saturation channel by the given scale
+        s = np.clip(s * saturation_scale, 0, 255).astype(np.uint8)
+        
+        # Merge the channels back
+        saturated_hsv_image = cv2.merge([h, s, v])
+        
+        # Convert the HSV image back to BGR format
+        saturated_bgr_image = cv2.cvtColor(saturated_hsv_image, cv2.COLOR_HSV2BGR)
+        
+        return saturated_bgr_image
 
     @staticmethod
     def rgb_to_gray(image):
-        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if (image.shape[2]==3):
+            return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return image
 
     @staticmethod
     def gray_to_rgb(image):
+        if(image.shape[2]==3):
+            return image
         return cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
     @staticmethod
