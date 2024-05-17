@@ -23,6 +23,7 @@ class ClientGui(QMainWindow):
         self.setWindowIcon(QIcon("icon.png"))
         self.resize(1200, 800)
         self.tableData = []
+        self.result_windows =[] 
         # Set the font for the title and other text
         self.title_font = QFont("consolas", 24, QFont.Bold)
         self.text_font = QFont("roboto", 14)
@@ -298,8 +299,8 @@ class ClientGui(QMainWindow):
     
     def show_result_window(self, respone_text):
         # This method creates a new window to display the processed image
-        self.result_window = ResultWindow(respone_text)
-        self.result_window.show()
+        self.result_windows.append(ResultWindow(respone_text))
+        self.result_windows[-1].show()
 
 
 class ResultWindow(QWidget):
@@ -326,7 +327,7 @@ class ResultWindow(QWidget):
         # Create a vertical box layout for the main window
         self.vbox_layout_res = QVBoxLayout(self)
         self.vbox_layout_res.setAlignment(Qt.AlignTop)
-        self.vbox_layout_res.setContentsMargins(300, 150, 300, 150)
+        self.vbox_layout_res.setContentsMargins(200, 50, 200, 50)
 
         # Add a title label to the layout
         self.progress_bar=QProgressBar(self)
@@ -359,7 +360,10 @@ class ResultWindow(QWidget):
         self.hbox_layout_res.setAlignment(Qt.AlignCenter)
 
         self.image_label = QLabel(self)
+        self.vbox_layout_res.addWidget(self.image_label)
+        self.image_label.hide()
        
+        self.vbox_layout_res.addSpacing(20)
 
         self.download_button = QPushButton("Download", self)
         self.hbox_layout_res.addWidget(self.download_button)
@@ -371,20 +375,16 @@ class ResultWindow(QWidget):
         self.download_button.setEnabled(True)
         self.download_button.hide()
         self.vbox_layout_res.addLayout(self.hbox_layout_res)
-         
-        self.vbox_layout_res.addSpacing(20)
-        self.vbox_layout_res.addWidget(self.image_label)
-        self.image_label.hide()
+        
 
 
     def download_image(self):
-        QDesktopServices.openUrl(QUrl(self.link))
-        print("Image downloaded")
-        # options = QFileDialog.Options()
-        # save_path, _ = QFileDialog.getSaveFileName(self, "Save Image", "",
-        #                                            "Images (*.jpg *.png *.jpeg)", options=options)
-        # if save_path:
-        #     shutil.copyfile(image_path, save_path)
+        if self.link is None:
+            print("Image not downloaded yet")
+        else:
+            QDesktopServices.openUrl(QUrl(self.link))
+            print("Image downloaded")
+       
     def task_status(self, task_id):
         try:
             from Notification_System import NotificationSystem
@@ -395,15 +395,9 @@ class ResultWindow(QWidget):
         except Exception as e :
             print(f"Failed to start polling thread: {e}")
 
-    
-    def show_image_and_download_button(self):
-        self.progress_bar.deleteLater()
-        self.progress_label.deleteLater()
-
-        self.download_button.show()
-        print("Download button displayed")
-
-        img = self.storage.get_image(self.title)  # Assuming this returns a valid image
+    @pyqtSlot()
+    def show_image(self):
+        self.image = self.storage.get_image(self.title)  # Assuming this returns a valid image
         qformat = QImage.Format_Indexed8
         if len(self.image.shape) == 3:
             if(self.image.shape[2]) == 4:
@@ -414,9 +408,11 @@ class ResultWindow(QWidget):
         img = img.rgbSwapped() 
         self.image_label.setPixmap(QPixmap.fromImage(img))
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setFixedSize(500, 500)
+        self.image_label.setFixedSize(img.size())
+        self.vbox_layout_res.setAlignment(self.image_label, Qt.AlignCenter)
         self.image_label.show()
         print("Image displayed")
+
 
     def update_progress_bar(self, status, link=None):
         if status == "in progress (processing)":
@@ -431,9 +427,16 @@ class ResultWindow(QWidget):
                        "Processed": 100}
         self.progress_label.setText(status)
         self.progress_bar.setValue(status_dict[status])
+        time.sleep(3)
         if status == "Processed":
             self.link = link
-            self.show_image_and_download_button()
+            self.progress_bar.deleteLater()
+            self.progress_label.deleteLater()
+            time.sleep(1)
+            self.download_button.show()
+            print("Download button displayed")
+            self.show_image()
+            #self.show_image_and_download_button()
             
 
 def main():
