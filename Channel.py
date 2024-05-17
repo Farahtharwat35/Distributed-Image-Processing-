@@ -5,10 +5,9 @@ import pika.delivery_mode
 username ='salma'
 password ='7256203'
 
-
 # Channel class to publish and consume messages
-class Channel:
-    def __init__(self, host='13.40.98.49', port='5672'):
+class Channel():
+    def __init__(self, host='3.8.6.56', port='5672'):
         credentials = pika.PlainCredentials(username, password)
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=host, port=port, credentials=credentials))
         self.channel = self.connection.channel()

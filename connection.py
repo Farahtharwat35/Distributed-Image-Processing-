@@ -3,7 +3,6 @@ import subprocess
 import json
 
 class Connection:
-
   def __init__(self):
    self.channel = Channel.Channel()
    self.channel.consume('requests', self.callback)
@@ -24,3 +23,4 @@ class Connection:
 
 if __name__ == "__main__":
     consumer = Connection()
+
