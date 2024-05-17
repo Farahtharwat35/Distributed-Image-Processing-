@@ -35,7 +35,7 @@ class ProcessingNode:
     def process_chunk(self, chunk, service_num, **kwargs):
         service_methods = {
             1: ("invert", {}),
-            2: ("saturate", {"value": kwargs.get("value", 0)}),
+            2: ("saturate", {"saturation_scale": kwargs.get("value", 0)}),
             3: ("rgb_to_gray", {}),
             4: ("gray_to_rgb", {}),
             6: (
@@ -161,7 +161,7 @@ class ProcessingNode:
         # print("COUNTER INTIAL : ", ProcessingNode.counter)
         # print("SIZE : ", self.size)
         # if ProcessingNode.counter == self.size:
-        redisDB.update_image_status(task_id, {"status": 'in progress (processing)',
+        redisDB.update_image_status(task_id, {"status": "In Progress (Processing)",
                                               "link": 'None'})
         # ProcessingNode.counter = 0
         test_r = redisDB.pull(task_id)
@@ -176,14 +176,15 @@ class ProcessingNode:
             processed_chunk = self.process_chunk(image_array, service_num, **self.params)
             reconstructed_image = self.reconstruct_array([processed_chunk])
             reconstructed_image.save("reconstructed_image.png")
+            reconstructed_image = np.array(reconstructed_image)
             self.storage.upload_image(reconstructed_image, task_id)
+            time.sleep(5)
             img_link = self.storage.create_signed_url(task_id)
-            redisDB.update_image_status(task_id, {"status": 'processed',
+            redisDB.update_image_status(task_id, {"status": "Processed",
                                                   "link": img_link})
             test_r = redisDB.pull(task_id)
             print("PROCESSED STATUS TEST : ", test_r)
         else:
-
             chunk_size_row = image_array.shape[0] // (self.size - 1)
             chunk_size_col = image_array.shape[1]
             num_channels = image_array.shape[2]
@@ -224,15 +225,17 @@ class ProcessingNode:
                 # Reconstruct using the received chunks
                 reconstructed_image = self.reconstruct_array(recv_chunks)
                 reconstructed_image.save("reconstructed_image.png")
+
                 # Upload the reconstructed image to Google Cloud Storage
                 reconstructed_image = np.array(reconstructed_image)
                 self.storage.upload_image(reconstructed_image, task_id)
+                time.sleep(10)
                 img_link = self.storage.create_signed_url(task_id)
                 # with ProcessingNode.lock:
                 # print("COUNTER : ", ProcessingNode.counter)
                 # if ProcessingNode.counter == self.size:
 
-                redisDB.update_image_status(task_id, {"status": 'processed',
+                redisDB.update_image_status(task_id, {"status": "Processed",
                                                       "link": img_link})
                 test_r = redisDB.pull(task_id)
                 print("PROCESSED STATUS TEST : ", test_r)
@@ -263,6 +266,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    node = ProcessingNode()
+    node.run(task_id=args.task_id, service_num=args.service_num)
     # Define the path to your test image
     # test_image_path = 'icon.png'
     # image = cv2.imread(test_image_path)
