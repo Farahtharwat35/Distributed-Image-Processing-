@@ -250,25 +250,30 @@ class ClientGui(QMainWindow):
         # Creating a thread for task_status
         task_status_thread = threading.Thread(target=self.task_status, args=(response.text,))
         task_status_thread.start()
+        print("Task status thread started")
     
     def task_status(self, task_id):
         try:
             from Notification_System import NotificationSystem
             notification_system = NotificationSystem(task_id)
-            poll_thread = threading.Thread(target=notification_system.poll_task)
+            poll_thread = threading.Thread(target=notification_system.poll_task , args=(self,))
             poll_thread.start()
+            print("Polling thread started")
         except Exception as e :
             print(f"Failed to start polling thread: {e}")
 
     def show_result_window(self,image_status=None,processed_image=None):
         # This method creates a new window to display the processed image
         if (image_status == None):
-            self.result_window = ResultWindow("NOT PROCESSED YET") 
+            #self.result_window = ResultWindow("NOT PROCESSED YET") 
+            print("NOT PROCESSED YET")
         elif (image_status == "processed"):
-            self.result_window = ResultWindow("PROCESSED", processed_image)
+            #self.result_window = ResultWindow("PROCESSED", processed_image)
+            print("PROCESSED" , processed_image)
         else:
-            self.result_window = ResultWindow(image_status)  
-        self.result_window.show()
+            #self.result_window = ResultWindow(image_status)  
+            print(image_status)
+        #self.result_window.show()
 
 
 class ResultWindow(QWidget):
@@ -325,9 +330,10 @@ class ResultWindow(QWidget):
         # if save_path:
         #     shutil.copyfile(image_path, save_path)
         
-app = QApplication(sys.argv)
-main_window = ClientGui()
+
 def main():
+    app = QApplication(sys.argv)
+    main_window = ClientGui()
     main_window.show()
     sys.exit(app.exec_())
     # client = ClientGUI('http://localhost:8000')

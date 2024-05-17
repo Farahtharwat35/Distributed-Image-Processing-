@@ -31,7 +31,11 @@ class Utilities:
 
     @staticmethod
     def butterworth_lowpass_filter(image, cutoff_frequency, order):
-        rows, cols = image.shape
+        # In butterworth_lowpass_filter function
+        if len(image.shape) == 2:
+            rows, cols = image.shape
+        elif len(image.shape) == 3:
+            rows, cols, channels = image.shape
         crow, ccol = int(rows / 2), int(cols / 2)
         x = np.linspace(-0.5, 0.5, cols) * cols
         y = np.linspace(-0.5, 0.5, rows) * rows
@@ -117,17 +121,54 @@ class Utilities:
 
     @staticmethod
     def hough_transform(image, rho, theta, threshold):
+        # Create a copy of the original image to draw lines on
+        image_with_lines = np.copy(image)
+        
+        # Convert the image to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Perform edge detection using the Canny edge detector
         edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+        
+        # Apply the Hough Transform to detect lines
         lines = cv2.HoughLines(edges, rho, theta, threshold)
-        return lines
-
-    @staticmethod
-    def harris_corner_detection(image, blockSize, ksize, k):
+        
+        # Draw detected lines on the image copy
+        if lines is not None:
+            for line in lines:
+                rho, theta = line[0]
+                a = np.cos(theta)
+                b = np.sin(theta)
+                x0 = a * rho
+                y0 = b * rho
+                x1 = int(x0 + 1000 * (-b))
+                y1 = int(y0 + 1000 * (a))
+                x2 = int(x0 - 1000 * (-b))
+                y2 = int(y0 - 1000 * (a))
+                cv2.line(image_with_lines, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        
+        return image_with_lines
+    
+    # @staticmethod
+    # def harris_corner_detection(image, blockSize, ksize, k):
+    #     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #     corners = cv2.cornerHarris(gray, blockSize, ksize, k)
+    #     return corners
+    def harris_corner_detection(image, blockSize=2, ksize=3, k=0.04):
+        # Converting the image to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Applying Harris corner detection
         corners = cv2.cornerHarris(gray, blockSize, ksize, k)
-        return corners
-
+        
+        # Threshold for an optimal value, it may vary depending on the image.
+        corners = cv2.dilate(corners, None)
+        
+        # Creating an RGB image with corner markers
+        output_image = np.copy(image)
+        output_image[corners > 0.01 * corners.max()] = [0, 0, 255]  # Marking corners in red
+        return output_image
+    
     @staticmethod
     def binary_threshold(image, threshold_value):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -147,11 +188,50 @@ class Utilities:
         ret, thresh = cv2.threshold(blur, threshold_value, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
         return thresh
 
-    @staticmethod
-    def mean_adaptive_threshold(image, block_size, constant):
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, constant)
-        return thresh
+    # @staticmethod
+    # def mean_adaptive_threshold(image, block_size, constant):
+    #     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, constant)
+    #     return thresh
+    def mean_adaptive_threshold(image, block_size=11, constant=2):
+        """
+        Apply mean adaptive thresholding to an image.
+
+        Parameters:
+        - image: The input image (numpy array).
+        - block_size: Size of the pixel neighborhood used to calculate the threshold value. Must be odd and greater than 1.
+        - constant: A constant value that is subtracted from the mean or weighted mean.
+
+        Returns:
+        - thresholded_image: The thresholded image (same number of channels as input).
+        """
+        # Ensuring block_size is odd and greater than 1
+        if block_size % 2 == 0 or block_size <= 1:
+            raise ValueError("block_size must be an odd number and greater than 1.")
+
+        # Converting to grayscale if the image has more than one channel
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image
+
+        # Applying adaptive thresholding
+        thresh = cv2.adaptiveThreshold(
+            gray, 
+            255, 
+            cv2.ADAPTIVE_THRESH_MEAN_C, 
+            cv2.THRESH_BINARY, 
+            block_size, 
+            constant
+        )
+
+        # Converting back to 3 channels if the original image had 3 channels
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            thresholded_image = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+        else:
+            thresholded_image = thresh
+
+        return thresholded_image
 
     @staticmethod
     def gaussian_adaptive_threshold(image, block_size, constant):

@@ -26,13 +26,19 @@ class RequestHandler(BaseHTTPRequestHandler):
         encoded_image_as_str = request_data['image']
         self.storage.upload_image(encoded_image_as_str, task_id)
         message = {'client_address': client_address, 'task_id': task_id, 'service_num': service_num}
+        test_r = None
+        # ttl = None
         try:
             redisDB.update_image_status(task_id, {"status": 'received but not processed yet',
                                                   "link": 'None'})
             test_r = redisDB.pull(task_id)
+            print("RECEIVED STATUS TEST : ", test_r)
+            # # Check TTL of a key
+            # ttl = redisDB.redis_client.ttl(task_id)
+            # print("TTL of 'TASK ID is':", ttl)
         except Exception as e:
             print(f"Failed to update status in redis: {e}")
-        print("RECEIVED STATUS TEST : ", test_r)
+          
         try:
             self.channel.publish('requests', json.dumps(message))
         except Exception as e:
