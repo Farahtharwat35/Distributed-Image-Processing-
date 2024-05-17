@@ -2,7 +2,7 @@ import shutil
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QFileDialog, QPushButton, \
     QHBoxLayout, QComboBox
-from PyQt5.QtCore import Qt, QMimeData
+from PyQt5.QtCore import Qt, QMimeData,pyqtSlot
 from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QDragEnterEvent, QDropEvent, QDragMoveEvent, QPixmap, \
     QDesktopServices, QImage
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QProgressBar
@@ -359,10 +359,7 @@ class ResultWindow(QWidget):
         self.hbox_layout_res.setAlignment(Qt.AlignCenter)
 
         self.image_label = QLabel(self)
-        self.vbox_layout_res.addWidget(self.image_label)
-        self.image_label.hide()
-
-        self.vbox_layout_res.addSpacing(30)
+       
 
         self.download_button = QPushButton("Download", self)
         self.hbox_layout_res.addWidget(self.download_button)
@@ -374,7 +371,11 @@ class ResultWindow(QWidget):
         self.download_button.setEnabled(True)
         self.download_button.hide()
         self.vbox_layout_res.addLayout(self.hbox_layout_res)
-        
+         
+        self.vbox_layout_res.addSpacing(20)
+        self.vbox_layout_res.addWidget(self.image_label)
+        self.image_label.hide()
+
 
     def download_image(self):
         QDesktopServices.openUrl(QUrl(self.link))
@@ -394,25 +395,28 @@ class ResultWindow(QWidget):
         except Exception as e :
             print(f"Failed to start polling thread: {e}")
 
+    
     def show_image_and_download_button(self):
         self.progress_bar.deleteLater()
         self.progress_label.deleteLater()
 
         self.download_button.show()
-        
-        get_image = self.storage.get_image(self.title)
-        get_image = cv2.cvtColor(get_image, cv2.COLOR_BGR2RGB)
-        qimage = QImage(get_image.data, get_image.shape[1], get_image.shape[0], QImage.Format_RGB888)
+        print("Download button displayed")
 
-        image_element = QPixmap.fromImage(qimage)
-
-        self.image_label.setPixmap(image_element)
-        self.image_label.setScaledContents(True)
+        img = self.storage.get_image(self.title)  # Assuming this returns a valid image
+        qformat = QImage.Format_Indexed8
+        if len(self.image.shape) == 3:
+            if(self.image.shape[2]) == 4:
+                qformat = QImage.Format_RGBA8888
+            else:
+                qformat = QImage.Format_RGB888
+        img = QImage(self.image, self.image.shape[1], self.image.shape[0], self.image.strides[0], qformat)
+        img = img.rgbSwapped() 
+        self.image_label.setPixmap(QPixmap.fromImage(img))
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setFixedSize(500, 500)
         self.image_label.show()
         print("Image displayed")
-
-        self.download_button.show()
-        print("Download button displayed")
 
     def update_progress_bar(self, status, link=None):
         if status == "in progress (processing)":
