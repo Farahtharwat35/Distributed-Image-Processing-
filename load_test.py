@@ -1,39 +1,47 @@
-import argparse
+import base64
 import threading
 import time
 import random
-
+import json
+import requests
 from processing_node import ProcessingNode
 
+IMAGE_FILE_PATH = "testttt.png"
+
+def mock_upload(IMAGE_FILE_PATH, service_num):
+
+    with open(IMAGE_FILE_PATH, 'rb') as f:
+        image_bytes = f.read()
+    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+    request = {'image': image_base64, 'service_num': service_num}
+    response = requests.post('http://localhost:8000', data=json.dumps(request),
+                             headers={'Content-Type': 'application/json'})
+    print(f'server response: {response.text}')
 
 def process_task(task_id, service_num):
     start_time = time.time()
-
     node = ProcessingNode()
-
     node.run(task_id=task_id, service_num=service_num)
-
     end_time = time.time()
     return end_time - start_time
 
 
-def thread_function(task_id, service_num, times_list):
-    execution_time = process_task(task_id, service_num)
-    times_list.append(execution_time)
+def thread_function(service_num, times_list):
+    service_num = random.choice(list(range(1, 5)) + list(range(6, 25)))  # Exclude service number 5
+    mock_upload(IMAGE_FILE_PATH, service_num)
+    #execution_time = process_task(task_id, service_num)
+    #times_list.append(execution_time)
 
 
 if __name__ == "__main__":
-
-    times_list = []
-
     threads = []
-    for i in range(100):
-        task_id = random.randint(1, 1000000)
-        service_num = random.randint(1, 5)
-        thread = threading.Thread(target=process_task, args=(task_id, service_num))
+    for _ in range(10000):
+        thread = threading.Thread(target=thread_function)
         threads.append(thread)
         thread.start()
 
+    times_list = []
+    threads = []
 
     for t in threads:
         t.join()
