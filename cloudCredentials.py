@@ -29,7 +29,7 @@ class Storage:
     # Upload the image to Google Cloud Storage
     blob = self.bucket.blob(task_id + ".png")
     blob.upload_from_string(encoded_image_bytes, content_type="image/png")
-    time.sleep(4)
+    time.sleep(1)
     blob.content_disposition = "attachment"
     blob.patch()
         

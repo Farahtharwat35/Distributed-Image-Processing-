@@ -5,7 +5,7 @@ import random
 import json
 import requests
 
-IMAGE_FILE_PATH = "testttt.png"
+IMAGE_FILE_PATH = "IQ.jpg"
 
 def mock_upload(IMAGE_FILE_PATH, service_num):
     start_time = time.time()
@@ -22,7 +22,7 @@ def mock_upload(IMAGE_FILE_PATH, service_num):
 
 def thread_function(times_list):
 
-    service_num = random.choice(list(range(1, 5)) + list(range(6, 25)))  # Exclude service number 5
+    service_num = random.choice(list(range(1, 5)) + list(range(8, 21))+list(range(23,25))) # Exclude service number 5
     execution_time = mock_upload(IMAGE_FILE_PATH, service_num)
     times_list.append(execution_time)
 
@@ -30,8 +30,8 @@ def thread_function(times_list):
 if __name__ == "__main__":
     threads = []
     times_list = []
-    for _ in range(10000):
-        thread = threading.Thread(target=thread_function)
+    for _ in range(10):
+        thread = threading.Thread(target=thread_function(times_list))
         threads.append(thread)
         thread.start()
 

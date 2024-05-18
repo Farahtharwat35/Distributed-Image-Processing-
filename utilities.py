@@ -227,8 +227,8 @@ class Utilities:
         - thresholded_image: The thresholded image (same number of channels as input).
         """
         # Ensuring block_size is odd and greater than 1
-        if block_size % 2 == 0 or block_size <= 1:
-            raise ValueError("block_size must be an odd number and greater than 1.")
+        # if block_size % 2 == 0 or block_size <= 1:
+        #     raise ValueError("block_size must be an odd number and greater than 1.")
 
         # Converting to grayscale if the image has more than one channel
         if len(image.shape) == 3 and image.shape[2] == 3:
