@@ -5,7 +5,7 @@
 This project serves as the culmination of the **Distributed Computing course** offered by the **Faculty of Engineering, Ain Shams University**. Our goal was to demonstrate practical knowledge in distributed systems, scalability, and efficient computation. The system we developed showcases key concepts and technologies relevant to distributed computing. The system offers a variety of image processing services that are parallelized using MPI. The system leverages cloud services from Google Cloud such as Cloud Compute Engine and Cloud Storage. This system has also been load tested to demonstrate its capacity and scalability. Fault tolerance techniques have been implemented to ensure our system's reliability and availability.
 
 ## System Requirements
-- (MPI)[https://www.mpich.org/]
+(MPI)[https://www.mpich.org/]
 
 ## System Components
 
