@@ -12,7 +12,6 @@ import base64
 import json
 
 
-
 class ClientGui(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -213,16 +212,16 @@ class ClientGui(QMainWindow):
         # send request to server
         print(f'preparing to send request to server....')
         image_path = self.file_path_label.text()
-        option= self.additional_options.currentText()
+        option = self.additional_options.currentText()
         processing_options = {
             "Inversion": 1,
             "Saturation": 2,
             "RGB to Gray": 3,
             "Gray to RGB": 4,
             "Binary thresholding": 18,
-            "Otsu thresholding":19,
-            "Gaussian thresholding":24,
-            "Mean-adaptive thresholding":23,
+            "Otsu thresholding": 19,
+            "Gaussian thresholding": 24,
+            "Mean-adaptive thresholding": 23,
             "Gaussian-adaptive thresholding": 20,
             "Sobel edge detection": 12,
             "Prewitt edge detection": 13,
@@ -242,7 +241,7 @@ class ClientGui(QMainWindow):
         with open(image_path, 'rb') as f:
             image_bytes = f.read()
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-        service_num=processing_options[option]
+        service_num = processing_options[option]
         request = {'image': image_base64, 'service_num': service_num}
         response = requests.post('http://localhost:8000', data=json.dumps(request),
                                  headers={'Content-Type': 'application/json'})
@@ -251,29 +250,29 @@ class ClientGui(QMainWindow):
         task_status_thread = threading.Thread(target=self.task_status, args=(response.text,))
         task_status_thread.start()
         print("Task status thread started")
-    
+
     def task_status(self, task_id):
         try:
             from Notification_System import NotificationSystem
             notification_system = NotificationSystem(task_id)
-            poll_thread = threading.Thread(target=notification_system.poll_task , args=(self,))
+            poll_thread = threading.Thread(target=notification_system.poll_task, args=(self,))
             poll_thread.start()
             print("Polling thread started")
-        except Exception as e :
+        except Exception as e:
             print(f"Failed to start polling thread: {e}")
 
-    def show_result_window(self,image_status=None,processed_image=None):
+    def show_result_window(self, image_status=None, processed_image=None):
         # This method creates a new window to display the processed image
         if (image_status == None):
-            #self.result_window = ResultWindow("NOT PROCESSED YET") 
+            # self.result_window = ResultWindow("NOT PROCESSED YET")
             print("NOT PROCESSED YET")
         elif (image_status == "processed"):
-            #self.result_window = ResultWindow("PROCESSED", processed_image)
-            print("PROCESSED" , processed_image)
+            # self.result_window = ResultWindow("PROCESSED", processed_image)
+            print("PROCESSED", processed_image)
         else:
-            #self.result_window = ResultWindow(image_status)  
+            # self.result_window = ResultWindow(image_status)
             print(image_status)
-        #self.result_window.show()
+        # self.result_window.show()
 
 
 class ResultWindow(QWidget):
@@ -329,7 +328,7 @@ class ResultWindow(QWidget):
         #                                            "Images (*.jpg *.png *.jpeg)", options=options)
         # if save_path:
         #     shutil.copyfile(image_path, save_path)
-        
+
 
 def main():
     app = QApplication(sys.argv)

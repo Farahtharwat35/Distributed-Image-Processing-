@@ -1,6 +1,9 @@
 import tempfile
 import threading
+import tempfile
+import threading
 import cv2
+from mpi4py import MPI
 from mpi4py import MPI
 import numpy as np
 from PIL import Image
@@ -13,6 +16,7 @@ import time
 import io
 import base64
 from redis_db import redisDB
+import os
 
 
 class ProcessingNode:
@@ -93,7 +97,7 @@ class ProcessingNode:
             20: (
                 "gaussian_adaptive_threshold",
                 {
-                    "block_size": kwargs.get("block_size", 2),
+                    "block_size": kwargs.get("block_size", 3),
                     "constant": kwargs.get("constant", 0),
                 },
             ),
@@ -129,7 +133,16 @@ class ProcessingNode:
 
     def convert_image_to_array(self, image):
         print(f"IMAGE : {image}")
-        img = Image.open(image)
+        try:
+            img = Image.open(image)
+        except Exception as e:
+            print(f"Failed to open image: {e}")
+            while img is None:
+                try:
+                    img = Image.open(image)
+                except Exception as e:
+                    print(f"trying to open image again")
+                    time.sleep(0.5)
         img_pixels = asarray(img)
         print(type(img_pixels))
         # print(numpydata)
@@ -178,20 +191,43 @@ class ProcessingNode:
         # ProcessingNode.counter = 0
         test_r = redisDB.pull(task_id)
         print("PROCESSING STATUS TEST : ", test_r)
-        image = self.storage.get_image(task_id)
+        try:
+            image = self.storage.get_image(task_id)
+        except Exception as e:
+            print(f"Failed to retrieve image from Google Cloud Storage: {e}")
+            return
         cv2.imwrite(f"original_image.png", image)
-        time.sleep(4)
+        time.sleep(2)
         image_array = self.convert_image_to_array("original_image.png")
 
         if service_num in [6, 7, 21, 22]:
             # Sequential processing for specified service numbers
             processed_chunk = self.process_chunk(image_array, service_num, **self.params)
-            reconstructed_image = self.reconstruct_array([processed_chunk])
-            reconstructed_image.save("reconstructed_image.png")
-            reconstructed_image = np.array(reconstructed_image)
-            self.storage.upload_image(reconstructed_image, task_id)
-            time.sleep(5)
-            img_link = self.storage.create_signed_url(task_id)
+            #reconstructed_image = self.reconstruct_array([processed_chunk])
+            #reconstructed_image.save("reconstructed_image.png")
+            #reconstructed_image = np.array(reconstructed_image)
+            time.sleep(0.5)
+            try:
+                self.storage.upload_image(processed_chunk, task_id)
+            except Exception as e:
+                    print(f"Failed to upload image to Google Cloud Storage: {e}")
+                    while processed_chunk is None:
+                        try:
+                            self.storage.upload_image(processed_chunk, task_id)
+                            print(f"trying to upload image again"+task_id)
+                        except Exception as e:
+                            time.sleep(0.5)
+            time.sleep(0.5)
+            try:
+                img_link = self.storage.create_signed_url(task_id)
+            except Exception as e:
+                print(f"Failed to create signed URL: {e}")
+                while img_link is None:
+                    try:
+                        img_link = self.storage.create_signed_url(task_id)
+                    except Exception as e:
+                        print(f"Failed to create signed URL: {e}")
+                        time.sleep(0.5)            
             redisDB.update_image_status(task_id, {"status": "Processed",
                                                   "link": img_link})
             test_r = redisDB.pull(task_id)
@@ -247,9 +283,28 @@ class ProcessingNode:
 
                 # Upload the reconstructed image to Google Cloud Storage
                 reconstructed_image = np.array(reconstructed_image)
-                self.storage.upload_image(reconstructed_image, task_id)
-                time.sleep(10)
-                img_link = self.storage.create_signed_url(task_id)
+                time.sleep(0.5)
+                try:
+                    self.storage.upload_image(reconstructed_image, task_id)
+                except Exception as e:
+                    print(f"Failed to upload image to Google Cloud Storage: {e}")
+                    while reconstructed_image is None:
+                        try:
+                            self.storage.upload_image(reconstructed_image, task_id)
+                            print(f"trying to upload image again"+task_id)
+                        except Exception as e:
+                            time.sleep(0.5)
+                time.sleep(0.5)
+                try:
+                    img_link = self.storage.create_signed_url(task_id)
+                except Exception as e:
+                    print(f"Failed to create signed URL: {e}")
+                    while img_link is None:
+                        try:
+                            img_link = self.storage.create_signed_url(task_id)
+                        except Exception as e:
+                            print(f"Failed to create signed URL: {e}")
+                            time.sleep(0.5)
                 # with ProcessingNode.lock:
                 # print("COUNTER : ", ProcessingNode.counter)
                 # if ProcessingNode.counter == self.size:
@@ -258,6 +313,7 @@ class ProcessingNode:
                                                       "link": img_link})
                 test_r = redisDB.pull(task_id)
                 print("PROCESSED STATUS TEST : ", test_r)
+                #os.remove("original_image.png")
                 # return reconstructed_image
             else:
                 # with ProcessingNode.lock:
@@ -288,8 +344,11 @@ if __name__ == "__main__":
     node = ProcessingNode()
     node.run(task_id=args.task_id, service_num=args.service_num)
     # Define the path to your test image
-    # test_image_path = 'SB.jpg'
+    # test_image_path = 'icon.png'
     # image = cv2.imread(test_image_path)
 
     # Define the service number for the image processing task
-    service_num = 13  # For example, '1' for invert operation
+    # service_num = 6
+    # task_id = 1
+    node = ProcessingNode()
+    node.run(task_id=args.task_id, service_num=args.service_num)

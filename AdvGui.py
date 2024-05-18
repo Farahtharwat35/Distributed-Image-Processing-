@@ -171,7 +171,7 @@ class ClientGui(QMainWindow):
         elif element == "processing_options":
             name = QComboBox(self)
             name.addItems(["Processing family", "Color Manipulation", "Edge Detection",
-                                          "Fourier Domain Transform", "Thresholding", "Noise Removal",
+                                         "Thresholding", "Noise Removal",
                                           "General Filters"])
             name.setCurrentIndex(0)
             name.setFont(self.smaller_font)
@@ -242,9 +242,6 @@ class ClientGui(QMainWindow):
             "General Filters": ["Blurring", "Sharpening"],
 
             "Noise Removal": ["Remove Gaussian noise", "Remove salt & pepper noise"],
-
-            "Fourier Domain Transform": ["Butterworth low pass filter", "Butterworth high pass filter",
-                                         "Low pass filter", "High pass filter"]
         }
 
         # Get the selected processing family
@@ -279,10 +276,6 @@ class ClientGui(QMainWindow):
             "Sharpening": 9,
             "Remove Gaussian noise": 10,
             "Remove salt & pepper noise": 11,
-            "Butterworth low pass filter": 6,
-            "Butterworth high pass filter": 7,
-            "Low pass filter": 21,
-            "High pass filter": 22,
         }
         for row in self.tableData:
             image_path = row[0].text()
@@ -427,7 +420,7 @@ class ResultWindow(QWidget):
                        "Processed": 100}
         self.progress_label.setText(status)
         self.progress_bar.setValue(status_dict[status])
-        time.sleep(3)
+        time.sleep(1)
         if status == "Processed":
             self.link = link
             self.progress_bar.deleteLater()
