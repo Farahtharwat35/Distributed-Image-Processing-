@@ -145,21 +145,36 @@ class ProcessingNode:
             if chunk is not None
         ]
         result_array = np.concatenate(result_array)
-        # Convert the array to an image
+        # Convert the array to an imagec
         if len(result_array.shape) == 2:
             image = Image.fromarray(result_array, "L")
         else:
             image = Image.fromarray(result_array, "RGB")
         return image
+    
+    def remove_overlapping(self,image, overlap, rank):
 
-    def run(self, task_id, kernel_size=3, service_num=1):
+        if rank == 1:
+            piece = image[:-overlap + 1, :,:]
+        elif rank == self.size - 1:
+            piece = image[overlap:, :,:]
+        else:
+            piece = image[overlap:-overlap + 1, :,:]
+        return piece
+
+
+    def run(self, task_id, kernel_size=15, service_num=1):
         # with ProcessingNode.lock:
         # ProcessingNode.counter += 1
         # print("COUNTER INTIAL : ", ProcessingNode.counter)
         # print("SIZE : ", self.size)
         # if ProcessingNode.counter == self.size:
-        redisDB.update_image_status(task_id, {"status": "In Progress (Processing)",
-                                              "link": 'None'})
+        pull_task= redisDB.pull(task_id)
+        status=pull_task['status']
+        #in case a processing node failed , do not change the status , process the image again
+        if (status !="In Progress (Processing)"):
+            redisDB.update_image_status(task_id, {"status": "In Progress (Processing)",
+                                                "link": 'None'})
         # ProcessingNode.counter = 0
         test_r = redisDB.pull(task_id)
         print("PROCESSING STATUS TEST : ", test_r)
@@ -198,7 +213,7 @@ class ProcessingNode:
                     # Determine the slice indices
                     start_row = (chunk_size_row) * (i - 1)
                     end_row = (chunk_size_row) * i
-                    # print(f"Chunk size_{i}_BEFORE : ", start_row , " " , end_row)
+                    print(f"Chunk size_{i}_BEFORE : ", start_row , " " , end_row, "total: ",end_row-start_row+1)
                     if i > 1:
                         start_row -= overlap
                         # print(f"{i} Entered IF 1")
@@ -206,7 +221,7 @@ class ProcessingNode:
                         # print(f"{i} Entered IF 2")
                         # print("MY RANK @ END", self.comm.rank)
                         end_row += overlap
-                    # print("---------- i  : ", i, "start : ", start_row, "end :", end_row)
+                    print("---------- i  : ", i, "start : ", start_row, "end :", end_row,"total: ",end_row-start_row+1)
                     # Extract chunk to be sent to worker
                     chunk = image_array[start_row:end_row, :, :]
                     print(f"Chunk size_{i}_AFTER : ", chunk.shape)
@@ -218,6 +233,13 @@ class ProcessingNode:
                 for i in range(1, self.size):
                     # Gather processed chunks from workers
                     processed_chunk = self.comm.recv(source=i, tag=0)
+                    if kernel_size != 0:
+                        if self.rank == 1:
+                            processed_chunk = self.remove_overlapping(processed_chunk, overlap, self.rank)
+                        elif self.rank == self.rank - 1:
+                            processed_chunk = self.remove_overlapping(processed_chunk, overlap, self.rank)
+                        else:
+                            processed_chunk = self.remove_overlapping(processed_chunk,overlap,self.rank)
                     recv_chunks.append(processed_chunk)
                 # Reconstruct using the received chunks
                 reconstructed_image = self.reconstruct_array(recv_chunks)
