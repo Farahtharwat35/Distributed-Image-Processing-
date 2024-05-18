@@ -70,7 +70,7 @@ class ClientGui(QMainWindow):
         #Family ComboBox
         self.processing_options = QComboBox(self)
         self.processing_options.addItems(["Processing family", "Color Manipulation", "Edge Detection",
-                                          "Fourier Domain Transform", "Thresholding", "Noise Removal",
+                                           "Thresholding", "Noise Removal",
                                           "General Filters"])
         self.processing_options.setCurrentIndex(0)
         self.processing_options.setFont(self.smaller_font)
@@ -149,16 +149,38 @@ class ClientGui(QMainWindow):
                                             " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
         self.add_button.setFixedSize(200, 50)
 
+        self.remove_button = QPushButton("Remove", self)
+        self.remove_button.clicked.connect(self.remove_row)
+        self.remove_button.setFont(self.text_font)
+        self.remove_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
+                                            " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
+        self.remove_button.setFixedSize(200, 50)
+
 
         hbox_layout = QHBoxLayout()
         hbox_layout.addWidget(self.submit_button)
         hbox_layout.addWidget(self.add_button)
+        hbox_layout.addWidget(self.remove_button)
 
         # Align the submit_button to the left and the add_button to the right
         hbox_layout.setAlignment(self.submit_button, Qt.AlignLeft)
         hbox_layout.setAlignment(self.add_button, Qt.AlignRight)
 
         vbox_layout.addLayout(hbox_layout)
+
+    def remove_row(self):
+        if self.table.rowCount() > 1:
+            self.table.removeRow(self.table.rowCount()-1)
+            self.tableData.pop()
+            self.add_button.setEnabled(True)
+            self.table.setFixedWidth(900)
+            self.table.setHorizontalHeaderLabels(["Image","Path","Family","Operation"])
+            self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+            self.table.setRowHeight(self.table.rowCount()-1, 60)
+            self.table.show()
+        else:
+            self.remove_button.setEnabled(False)
 
     def copy_element(self, element,name,connected=None):
         if element == "upload_button":
