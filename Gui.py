@@ -1,27 +1,33 @@
 import shutil
 import sys
-import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QFileDialog, QPushButton, \
     QHBoxLayout, QComboBox
-from PyQt5.QtCore import Qt, QMimeData
+from PyQt5.QtCore import Qt, QMimeData,pyqtSlot
 from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QDragEnterEvent, QDropEvent, QDragMoveEvent, QPixmap, \
-    QDesktopServices
+    QDesktopServices, QImage
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QProgressBar
 from PyQt5.QtCore import QUrl
 import requests
 import base64
 import json
-
+import threading
+import time
+import cloudCredentials
+import cv2
+import imghdr
 
 class ClientGui(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Distributed Image Processor")
         self.setWindowIcon(QIcon("icon.png"))
-
+        self.resize(1200, 800)
+        self.tableData = []
+        self.result_windows =[] 
         # Set the font for the title and other text
-        title_font = QFont("consolas", 24, QFont.Bold)
-        text_font = QFont("roboto", 16)
-        smaller_text_font = QFont("roboto", 12)
+        self.title_font = QFont("consolas", 24, QFont.Bold)
+        self.text_font = QFont("roboto", 14)
+        self.smaller_font = QFont("roboto", 10)
 
         # Create a central widget and layout
         central_widget = QWidget(self)
@@ -36,132 +42,215 @@ class ClientGui(QMainWindow):
         # Create a vertical box layout
         vbox_layout = QVBoxLayout(central_widget)
         vbox_layout.setAlignment(Qt.AlignTop)  # Align the layout vertically top
-        vbox_layout.setContentsMargins(300, 150, 300, 150)  # Set the top margin of the layout
+        vbox_layout.setContentsMargins(150, 150, 150, 150)  # Set the top margin of the layout
 
         # Add a title label to the layout
         title_label = QLabel("Distributed Image Processor", self)
         title_label.setAlignment(Qt.AlignCenter)  # Align the label horizontally center
-        title_label.setFont(title_font)  # Set the font for the label
+        title_label.setFont(self.title_font)  # Set the font for the label
         vbox_layout.addWidget(title_label)
 
-        vbox_layout.addSpacing(100)
+        vbox_layout.addSpacing(50)
 
-        # Label to indicate drag and drop functionality
-        drag_drop_label = QLabel("Drag and drop an image here\n upload .jpg, .png, .jpeg", self)
-        drag_drop_label.setAlignment(Qt.AlignCenter)
-        drag_drop_label.setFont(text_font)
-        drag_drop_label.setStyleSheet("QLabel "
-                                      "{ border: 2px dashed #00cf81; border-radius: 15px; "
-                                      "padding: 10px; color: #fafafa; }")
-        vbox_layout.addWidget(drag_drop_label)
-
-        # Enable dragging and dropping onto the window
-        self.setAcceptDrops(True)
-
-        vbox_layout.addSpacing(20)
-
-        # Create a horizontal box layout for the upload button and file path label
-        hbox1_layout = QHBoxLayout()
-        hbox1_layout.setAlignment(Qt.AlignLeft)  # Align the layout left
-
-        # Add the upload button to the horizontal layout
-        self.upload_button = QPushButton("Browse images", self)
-        self.upload_button.clicked.connect(self.openFileDialog)
-        self.upload_button.setFont(text_font)
-        self.upload_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
-                                         " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
-        self.upload_button.setFixedSize(200, 50)
-        hbox1_layout.addWidget(self.upload_button)
-
-        # Add a spacer to separate the button and label
-        hbox1_layout.addSpacing(10)
-
-        # Add the file path label to the horizontal layout
         self.file_path_label = QLabel("No file selected", self)
         self.file_path_label.setAlignment(Qt.AlignCenter)
-        self.file_path_label.setFont(smaller_text_font)
+        self.file_path_label.setFont(self.smaller_font)
         self.file_path_label.setStyleSheet("QLabel { color : #00cf81; }")
-        hbox1_layout.addWidget(self.file_path_label)
+        self.file_path_label.setFixedSize(200, 50)
+        self.file_path_label.setContentsMargins(20, 10, 10, 10)
 
-        # Add the horizontal layout to the vertical layout
-        vbox_layout.addLayout(hbox1_layout)
-        vbox_layout.addSpacing(20)
+        self.upload_button = QPushButton("Browse images", self)
+        self.upload_button.clicked.connect(self.openFileDialog)
+        self.upload_button.setFont(self.text_font)
+        self.upload_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
+                                         " color: black; font-size: 20px; cursor: pointer; padding: 5px 10px; }")
+        self.upload_button.setFixedSize(200, 50)
+        self.upload_button.setContentsMargins(20, 10, 10, 10)
 
-        hbox2_layout = QHBoxLayout()
-        hbox2_layout.setAlignment(Qt.AlignLeft)
-
-        self.processing_family_label = QLabel("Choose Processing Family", self)
-        self.processing_family_label.setFont(text_font)
-        self.processing_family_label.setStyleSheet("QLabel { color : #fafafa; }")
-        self.processing_family_label.hide()
-        hbox2_layout.addWidget(self.processing_family_label)
-
-        hbox2_layout.addSpacing(20)
-
-        # Dropdown menu for processing options
+        #Family ComboBox
         self.processing_options = QComboBox(self)
         self.processing_options.addItems(["Processing family", "Color Manipulation", "Edge Detection",
-                                          "Fourier Domain Transform", "Thresholding", "Noise Removal",
+                                           "Thresholding", "Noise Removal",
                                           "General Filters"])
         self.processing_options.setCurrentIndex(0)
-        self.processing_options.setFont(smaller_text_font)
+        self.processing_options.setFont(self.smaller_font)
         self.processing_options.setStyleSheet("QComboBox { border-radius: 10px; border: 2px solid #00cf81; "
                                               "background-color: #1c1e1c; color: #7d7d7d;}")
-        self.processing_options.setFixedSize(800, 50)
-        self.processing_options.hide()
-        hbox2_layout.addWidget(self.processing_options)
+        self.processing_options.setFixedSize(200, 50)
+        self.processing_options.setContentsMargins(20, 10, 10, 10)
+        
 
-        vbox_layout.addLayout(hbox2_layout)
-        vbox_layout.addSpacing(20)
-
-        hbox3_layout = QHBoxLayout()
-        hbox3_layout.setAlignment(Qt.AlignLeft)
-
-        self.additional_options_label = QLabel("Choose operation", self)
-        self.additional_options_label.setFont(text_font)
-        self.additional_options_label.setStyleSheet("QLabel { color : #fafafa; }")
-        self.additional_options_label.hide()
-        hbox3_layout.addWidget(self.additional_options_label)
-
-        hbox3_layout.addSpacing(125)
-
-        # Second combobox for additional options, hidden by default
+        #Add operation ComboBox
         self.additional_options = QComboBox(self)
-        self.additional_options.setFont(smaller_text_font)
+        self.additional_options.setFont(self.smaller_font)
         self.additional_options.setStyleSheet("QComboBox { border-radius: 10px; border: 2px solid #00cf81; "
                                               "background-color: #1c1e1c; color: #7d7d7d;}")
-        self.additional_options.setFixedSize(800, 50)
-        self.additional_options.hide()
-        hbox3_layout.addWidget(self.additional_options)
-
-        vbox_layout.addLayout(hbox3_layout)
-        vbox_layout.addSpacing(40)
-
-        # Connect the first combobox to update the second combobox based on selection
+        self.additional_options.setFixedSize(200, 50)
+        self.additional_options.setContentsMargins(20, 10, 10, 10)
+    
         self.processing_options.currentIndexChanged.connect(self.update_second_combobox)
+        
+        
 
-        # Add the submit button to the horizontal layout
+        self.tableCols=4
+        self.table=QTableWidget(1,self.tableCols,self)
+        self.table.setHorizontalHeaderLabels(["Image","Path","Family","Operation"])
+        self.table.setFixedWidth(900)
+        self.table.setCellWidget(0,0,self.upload_button)
+        self.table.setCellWidget(0,1,self.file_path_label)
+        self.table.setCellWidget(0,2,self.processing_options)
+        self.table.setCellWidget(0,3,self.additional_options)
+        self.tableData.append([self.file_path_label,self.additional_options])
+        self.table.setStyleSheet("""
+                QTableWidget {
+                    background-color:#1c1e1c;
+                    border: 0px;
+                    border-color: #1c1e1c;
+                                 
+                }
+                QHeaderView::section {
+                    background-color: #1c1e1c;
+                    color: white;
+                    border: 0px;
+                    border-color: #1c1e1c;
+                    text-style: bold;
+                }
+                QTableWidget::item:selected {
+                    background-color:#1c1e1c;
+                }
+                 QTableWidget::item {
+                    border: 0px;  # Remove the border from the cells
+                    border-color: #1c1e1c;
+                    }
+            """)
+        self.table.setRowHeight(0, 60)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.table.verticalHeader().hide()
+        vbox_layout.addWidget(self.table)
+
+        vbox_layout.addSpacing(30)
+
+        # Add a button to start the processing
         self.submit_button = QPushButton("Submit", self)
         # self.submit_button.clicked.connect(process_image)
         # Connect the submit button to the 'on_submit_clicked' method
         self.submit_button.clicked.connect(self.on_submit_clicked)
-        self.submit_button.setFont(text_font)
+        self.submit_button.setFont(self.text_font)
         self.submit_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
                                          " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
         self.submit_button.setFixedSize(200, 50)
-        self.submit_button.hide()
-        vbox_layout.addWidget(self.submit_button)
+       
+       #Add button add row for table
+        self.add_button = QPushButton("Add", self)
+        self.add_button.clicked.connect(self.add_row)
+        self.add_button.setFont(self.text_font)
+        self.add_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
+                                            " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
+        self.add_button.setFixedSize(200, 50)
 
-    def openFileDialog(main_window):
+        self.remove_button = QPushButton("Remove", self)
+        self.remove_button.clicked.connect(self.remove_row)
+        self.remove_button.setFont(self.text_font)
+        self.remove_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
+                                            " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
+        self.remove_button.setFixedSize(200, 50)
+
+
+        hbox_layout = QHBoxLayout()
+        hbox_layout.addWidget(self.submit_button)
+        hbox_layout.addWidget(self.add_button)
+        hbox_layout.addWidget(self.remove_button)
+
+        # Align the submit_button to the left and the add_button to the right
+        hbox_layout.setAlignment(self.submit_button, Qt.AlignLeft)
+        hbox_layout.setAlignment(self.add_button, Qt.AlignRight)
+
+        vbox_layout.addLayout(hbox_layout)
+
+    def remove_row(self):
+        if self.table.rowCount() > 1:
+            self.table.removeRow(self.table.rowCount()-1)
+            self.tableData.pop()
+            self.add_button.setEnabled(True)
+            self.table.setFixedWidth(900)
+            self.table.setHorizontalHeaderLabels(["Image","Path","Family","Operation"])
+            self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+            self.table.setRowHeight(self.table.rowCount()-1, 60)
+            self.table.show()
+        else:
+            self.remove_button.setEnabled(False)
+
+    def copy_element(self, element,name,connected=None):
+        if element == "upload_button":
+            name = QPushButton("Browse images", self)
+            name.clicked.connect(lambda: self.openFileDialog(connected))
+            name.setFont(self.text_font)
+            name.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
+                                            " color: black; font-size: 20px; cursor: pointer; padding: 5px 10px; }")
+            name.setFixedSize(200, 50)
+        elif element == "processing_options":
+            name = QComboBox(self)
+            name.addItems(["Processing family", "Color Manipulation", "Edge Detection",
+                                         "Thresholding", "Noise Removal",
+                                          "General Filters"])
+            name.setCurrentIndex(0)
+            name.setFont(self.smaller_font)
+            name.setStyleSheet("QComboBox { border-radius: 10px; border: 2px solid #00cf81; "
+                                              "background-color: #1c1e1c; color: #7d7d7d;}")
+            name.setFixedSize(200, 50)
+            name.currentIndexChanged.connect(lambda: self.update_second_combobox(name,connected))
+        elif element == "additional_options":
+            name = QComboBox(self)
+            name.setFont(self.smaller_font)
+            name.setStyleSheet("QComboBox { border-radius: 10px; border: 2px solid #00cf81; "
+                                              "background-color: #1c1e1c; color: #7d7d7d;}")
+            name.setFixedSize(200, 50)
+        elif element == "file_path_label":
+            name = QLabel("No file selected", self)
+            name.setAlignment(Qt.AlignCenter)
+            name.setFont(self.smaller_font)
+            name.setStyleSheet("QLabel { color : #00cf81; }")
+            name.setFixedSize(200, 50)
+        name.setContentsMargins(20, 10, 10, 10)
+        return name
+        
+
+        
+    def add_row(self):
+        rowPosition = self.table.rowCount()
+        self.table.insertRow(rowPosition)
+        tableRow=[]
+        tableRow.append(self.copy_element("file_path_label",f"file_path_label_{rowPosition}"))
+        tableRow.append(self.copy_element("additional_options",f"additional_options_{rowPosition}"))
+        self.table.setCellWidget(rowPosition,0,self.copy_element("upload_button",f"upload_button_{rowPosition}",tableRow[0]) )
+        self.table.setCellWidget(rowPosition,1,tableRow[0])
+        self.table.setCellWidget(rowPosition,2,self.copy_element("processing_options",f"processing_options_{rowPosition}",tableRow[1]))
+        self.table.setCellWidget(rowPosition,3,tableRow[1])
+        self.tableData.append(tableRow)
+        self.table.setFixedWidth(900)
+        self.table.setHorizontalHeaderLabels(["Image","Path","Family","Operation"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        self.table.setRowHeight(rowPosition, 60)
+        self.table.show()
+        if(self.table.rowCount()>=10):
+            self.add_button.setEnabled(False)
+
+    def openFileDialog(main_window,label=None):
         options = QFileDialog.Options()
         file_name, _ = QFileDialog.getOpenFileName(main_window, "Select an image", "",
                                                    "Images (*.jpg *.png *.jpeg)", options=options)
+        files=','.join(file_name)
+        print(f"labels: {label}")
         if file_name:
-            main_window.file_path_label.setText(file_name)
-            main_window.processing_options.show()
-            main_window.processing_family_label.show()
+            if hasattr(label, 'setText'):
+                label.setText(file_name)
+            else:
+                main_window.file_path_label.setText(file_name)
 
-    def update_second_combobox(main_window):
+    def update_second_combobox(main_window,first = None,second = None):
         # Dictionary mapping the first combobox options to the second combobox options
         options_dict = {
             "Color Manipulation": ["Inversion", "Saturation", "RGB to Gray", "Gray to RGB"],
@@ -175,53 +264,29 @@ class ClientGui(QMainWindow):
             "General Filters": ["Blurring", "Sharpening"],
 
             "Noise Removal": ["Remove Gaussian noise", "Remove salt & pepper noise"],
-
-            "Fourier Domain Transform": ["Butterworth low pass filter", "Butterworth high pass filter",
-                                         "Low pass filter", "High pass filter"]
         }
 
         # Get the selected processing family
-        processing_family = main_window.processing_options.currentText()
-
-        # Update and show the second combobox with the relevant options
-        main_window.additional_options.clear()
-        main_window.additional_options.addItems(options_dict.get(processing_family, []))
-        main_window.additional_options_label.show()
-        main_window.additional_options.show()
-        main_window.submit_button.show()
-
-    def dragEnterEvent(self, event: QDragMoveEvent):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        if event.mimeData().hasUrls():  # Check if the dropped item has URLs
-            urls = event.mimeData().urls()
-            if urls and urls[0].isLocalFile():
-                file_path = urls[0].toLocalFile()
-                self.file_path_label.setText(file_path)
-                self.processing_options.show()
-                self.processing_family_label.show()
-                event.accept()  # Accept the drop event
-            else:
-                event.ignore()  # Ignore the drop event if it's not a file
+        if hasattr(first, 'currentText'):
+            processing_family = first.currentText()
+            second.clear()
+            second.addItems(options_dict.get(processing_family, []))
         else:
-            event.ignore()  # Ignore the drop event if there are no URLs
-
+            processing_family = main_window.processing_options.currentText()
+            main_window.additional_options.clear()
+            main_window.additional_options.addItems(options_dict.get(processing_family, []))
+    
     def on_submit_clicked(self):
-        # send request to server
         print(f'preparing to send request to server....')
-        image_path = self.file_path_label.text()
-        option = self.additional_options.currentText()
         processing_options = {
             "Inversion": 1,
             "Saturation": 2,
             "RGB to Gray": 3,
             "Gray to RGB": 4,
             "Binary thresholding": 18,
-            "Otsu thresholding": 19,
-            "Gaussian thresholding": 24,
-            "Mean-adaptive thresholding": 23,
+            "Otsu thresholding":19,
+            "Gaussian thresholding":24,
+            "Mean-adaptive thresholding":23,
             "Gaussian-adaptive thresholding": 20,
             "Sobel edge detection": 12,
             "Prewitt edge detection": 13,
@@ -233,51 +298,35 @@ class ClientGui(QMainWindow):
             "Sharpening": 9,
             "Remove Gaussian noise": 10,
             "Remove salt & pepper noise": 11,
-            "Butterworth low pass filter": 6,
-            "Butterworth high pass filter": 7,
-            "Low pass filter": 21,
-            "High pass filter": 22,
         }
-        with open(image_path, 'rb') as f:
-            image_bytes = f.read()
-        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-        service_num = processing_options[option]
-        request = {'image': image_base64, 'service_num': service_num}
-        response = requests.post('http://localhost:8000', data=json.dumps(request),
-                                 headers={'Content-Type': 'application/json'})
-        print(f'server response: {response.text}')
-        # Creating a thread for task_status
-        task_status_thread = threading.Thread(target=self.task_status, args=(response.text,))
-        task_status_thread.start()
-        print("Task status thread started")
-
-    def task_status(self, task_id):
-        try:
-            from Notification_System import NotificationSystem
-            notification_system = NotificationSystem(task_id)
-            poll_thread = threading.Thread(target=notification_system.poll_task, args=(self,))
-            poll_thread.start()
-            print("Polling thread started")
-        except Exception as e:
-            print(f"Failed to start polling thread: {e}")
-
-    def show_result_window(self, image_status=None, processed_image=None):
+        for row in self.tableData:
+            image_path = row[0].text()
+            option = row[1].currentText()
+            with open(image_path, 'rb') as f:
+                image_bytes = f.read()
+            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+            service_num=processing_options[option]
+            request = {'image': image_base64, 'service_num': service_num}
+            response = requests.post('http://34.49.63.6:80/', data=json.dumps(request),
+                                    headers={'Content-Type': 'application/json'})
+            print(f'server response: {response.text}')
+            self.show_result_window(response.text)
+    
+    def show_result_window(self, respone_text):
         # This method creates a new window to display the processed image
-        if (image_status == None):
-            # self.result_window = ResultWindow("NOT PROCESSED YET")
-            print("NOT PROCESSED YET")
-        elif (image_status == "processed"):
-            # self.result_window = ResultWindow("PROCESSED", processed_image)
-            print("PROCESSED", processed_image)
-        else:
-            # self.result_window = ResultWindow(image_status)
-            print(image_status)
-        # self.result_window.show()
+        self.result_windows.append(ResultWindow(respone_text))
+        self.result_windows[-1].show()
 
 
 class ResultWindow(QWidget):
     def __init__(self, title, parent=None):
         super(ResultWindow, self).__init__(parent)
+        self.storage = cloudCredentials.Storage()
+        self.title = title.replace('"', '')
+        task_status_thread = threading.Thread(target=self.task_status, args=(title,))
+        task_status_thread.start()
+        self.link = None
+        self.get_image = None
 
         # Set window title and icon
         self.setWindowTitle(f'Processed Image: {title}')
@@ -287,48 +336,121 @@ class ResultWindow(QWidget):
         self.setStyleSheet("background-color: #1c1e1c;")
 
         # Set the font for the title and other text
-        title_font = QFont("consolas", 24, QFont.Bold)
-        text_font = QFont("roboto", 16)
+        self.title_font = QFont("consolas", 24, QFont.Bold)
+        self.text_font = QFont("roboto", 16)
 
         # Create a vertical box layout for the main window
-        vbox_layout = QVBoxLayout(self)
-        vbox_layout.setAlignment(Qt.AlignTop)
-        vbox_layout.setContentsMargins(300, 150, 300, 150)
+        self.vbox_layout_res = QVBoxLayout(self)
+        self.vbox_layout_res.setAlignment(Qt.AlignTop)
+        self.vbox_layout_res.setContentsMargins(200, 50, 200, 50)
 
         # Add a title label to the layout
-        title_label = QLabel("Here's your result...", self)
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("color: #fafafa;")
-        title_label.setFont(title_font)
-        vbox_layout.addWidget(title_label)
+        self.progress_bar=QProgressBar(self)
+        self.progress_bar.setRange(0,100)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid grey;
+                border-radius: 5px;
+                text-align: center;
+            }
 
-        vbox_layout.addSpacing(100)
+            QProgressBar::chunk {
+                background-color: #00cf81;
+                width: 20px;
+            }
+        """)
+        self.progress_bar.setFixedSize(500, 50)
+        self.vbox_layout_res.addWidget(self.progress_bar)
+        self.vbox_layout_res.addSpacing(50)
 
-        vbox_layout.addSpacing(30)
+        self.progress_label =QLabel("progress",self)
+        self.progress_label.setFont(self.text_font)
+        self.progress_label.setAlignment(Qt.AlignCenter)
+        self.progress_label.setStyleSheet("QLabel { color : #00cf81; }")
+        self.vbox_layout_res.addWidget(self.progress_label)
+
+        
         # Create a horizontal box layout for the download button
-        hbox_layout = QHBoxLayout()
-        hbox_layout.setAlignment(Qt.AlignCenter)
-        image_url = ''
-        # Add the download button to the horizontal layout
+        self.hbox_layout_res = QHBoxLayout(self)
+        self.hbox_layout_res.setAlignment(Qt.AlignCenter)
+
+        self.image_label = QLabel(self)
+        self.vbox_layout_res.addWidget(self.image_label)
+        self.image_label.hide()
+       
+        self.vbox_layout_res.addSpacing(20)
+
         self.download_button = QPushButton("Download", self)
-        self.download_button.clicked.connect(lambda: self.download_image(image_url))
-        self.download_button.setFont(text_font)
+        self.hbox_layout_res.addWidget(self.download_button)
+        self.download_button.clicked.connect(self.download_image)
+        self.download_button.setFont(self.text_font)
         self.download_button.setStyleSheet("QPushButton { border-radius: 10px; background-color: #00cf81;"
                                            " color: black; font-size: 20px; cursor: pointer; padding: 10px 20px; }")
         self.download_button.setFixedSize(200, 50)
-        hbox_layout.addWidget(self.download_button)
+        self.download_button.setEnabled(True)
+        self.download_button.hide()
+        self.vbox_layout_res.addLayout(self.hbox_layout_res)
+        
+    def download_image(self):
+        if self.link is None:
+            print("Image not downloaded yet")
+        else:
+            QDesktopServices.openUrl(QUrl(self.link))
+            print("Image downloaded")
+       
+    def task_status(self, task_id):
+        try:
+            from Notification_System import NotificationSystem
+            notification_system = NotificationSystem(task_id)
+            poll_thread = threading.Thread(target=notification_system.poll_task , args=(self,))
+            poll_thread.start()
+            print("Polling thread started")
+        except Exception as e :
+            print(f"Failed to start polling thread: {e}")
 
-        # Add the horizontal layout to the main vertical layout
-        vbox_layout.addLayout(hbox_layout)
+    @pyqtSlot()
+    def show_image(self):
+        self.image = self.storage.get_image(self.title)  # Assuming this returns a valid image
+        qformat = QImage.Format_Indexed8
+        if len(self.image.shape) == 3:
+            if(self.image.shape[2]) == 4:
+                qformat = QImage.Format_RGBA8888
+            else:
+                qformat = QImage.Format_RGB888
+        img = QImage(self.image, self.image.shape[1], self.image.shape[0], self.image.strides[0], qformat)
+        img = img.rgbSwapped() 
+        self.image_label.setPixmap(QPixmap.fromImage(img))
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setFixedSize(img.size())
+        self.vbox_layout_res.setAlignment(self.image_label, Qt.AlignCenter)
+        self.image_label.show()
+        print("Image displayed")
 
-    def download_image(self, image_path):
-        QDesktopServices.openUrl(QUrl(image_path))
-        # options = QFileDialog.Options()
-        # save_path, _ = QFileDialog.getSaveFileName(self, "Save Image", "",
-        #                                            "Images (*.jpg *.png *.jpeg)", options=options)
-        # if save_path:
-        #     shutil.copyfile(image_path, save_path)
 
+    def update_progress_bar(self, status, link=None):
+        if status == "in progress (processing)":
+            status = "In Progress (Processing)"
+        elif status == "task not processed yet":
+            status = "Task Not Processed Yet"
+        elif status == "received but not processed yet":
+            status = "Received But Not Processed Yet"
+        elif status == "processed":
+            status = "Processed"
+        status_dict = {"Task Not Processed Yet": 10, "Received But Not Processed Yet": 20, "In Progress (Processing)": 60,
+                       "Processed": 100}
+        self.progress_label.setText(status)
+        self.progress_bar.setValue(status_dict[status])
+        time.sleep(1)
+        if status == "Processed":
+            self.link = link
+            self.progress_bar.deleteLater()
+            self.progress_label.deleteLater()
+            time.sleep(1)
+            self.download_button.show()
+            print("Download button displayed")
+            self.show_image()
+            #self.show_image_and_download_button()
+            
 
 def main():
     app = QApplication(sys.argv)
