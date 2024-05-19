@@ -24,7 +24,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         task_id = str(uuid.uuid4())
         service_num = request_data['service_num']
         encoded_image_as_str = request_data['image']
-        self.storage.upload_image(encoded_image_as_str, task_id)
+        try:
+            self.storage.upload_image(encoded_image_as_str, task_id)
+        except Exception as e:
+            print(f"Failed to upload image: {e}")
+            self.storage.upload_image(encoded_image_as_str, task_id)
         message = {'client_address': client_address, 'task_id': task_id, 'service_num': service_num}
         test_r = None
         # ttl = None

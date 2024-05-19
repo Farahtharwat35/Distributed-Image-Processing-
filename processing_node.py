@@ -168,11 +168,11 @@ class ProcessingNode:
     def remove_overlapping(self,image, overlap, rank):
 
         if rank == 1:
-            piece = image[:-overlap + 1, :,:]
+            piece = image[:-overlap + 1, :]
         elif rank == self.size - 1:
-            piece = image[overlap:, :,:]
+            piece = image[overlap:, :]
         else:
-            piece = image[overlap:-overlap + 1, :,:]
+            piece = image[overlap:-overlap + 1, :]
         return piece
 
 
@@ -183,7 +183,7 @@ class ProcessingNode:
         # print("SIZE : ", self.size)
         # if ProcessingNode.counter == self.size:
         pull_task= redisDB.pull(task_id)
-        status=pull_task['status']
+        status=pull_task.get("status")
         #in case a processing node failed , do not change the status , process the image again
         if (status !="In Progress (Processing)"):
             redisDB.update_image_status(task_id, {"status": "In Progress (Processing)",
