@@ -17,7 +17,7 @@ def mock_upload(IMAGE_FILE_PATH, service_num):
         image_bytes = f.read()
     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
     request = {'image': image_base64, 'service_num': service_num}
-    response = requests.post('http://localhost:8000', data=json.dumps(request),
+    response = requests.post('http://34.49.63.6:80/', data=json.dumps(request),
                              headers={'Content-Type': 'application/json'})
     print(f'server response: {response.text}')
     return response.text
