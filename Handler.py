@@ -53,7 +53,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(task_id).encode())
     
     def do_GET(self):
+        response = json.dumps({'hello': 'world', 'received': 'ok'})
         self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        self.wfile.write(response.encode('utf-8'))
 
 class Node:
     def __init__(self, server_address, storage):
