@@ -51,6 +51,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps(task_id).encode())
+    
+    def do_GET(self):
+        self.send_response(200)
 
 class Node:
     def __init__(self, server_address, storage):
@@ -64,7 +67,7 @@ class Node:
 
 if __name__ == "__main__":
     storage = cloudCredentials.Storage()
-    node = Node(('localhost', 8000), storage)
+    node = Node(('0.0.0.0', 8000), storage)
     # Starting a new thread for handling requests
     # request_thread = Thread(target=node.run)
     # request_thread.start()

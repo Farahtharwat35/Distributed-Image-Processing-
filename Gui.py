@@ -451,7 +451,6 @@ class ResultWindow(QWidget):
             self.show_image()
             #self.show_image_and_download_button()
             
-
 def main():
     app = QApplication(sys.argv)
     main_window = ClientGui()
