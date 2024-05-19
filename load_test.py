@@ -22,27 +22,31 @@ def mock_upload(IMAGE_FILE_PATH, service_num):
     print(f'server response: {response.text}')
     return response.text
     
-def redis_pull(task_ID,start_time,times_list):
-    task_data = redisDB.pull(task_ID)
-    status = task_data.get("status")
-    while status != "Processed" or status != "processed":
+def redis_pull(task_ID):
+    print(f"Pulling task {task_ID} from Redis")
+    task_ID=task_ID.strip('"')
+    while True:
         task_data = redisDB.pull(task_ID)
-        status = task_data.get("status")
-        time.sleep(0.03)
+        if task_data:
+            status = task_data.get("status")
+            if "Processed"  in status or "processed" in status :
+                break
     print(f"Task {task_ID} is processed")
-    end_time = time.time()
-    execution_time = end_time - start_time
-    times_list.append(execution_time)
 
 
 
-def thread_function(times_list):
-    print("Thread started")
+def thread_function(times_list, i):
+    print(f"Thread {i} started")
     service_num = random.choice(list(range(1, 5)) + list(range(8, 21))+list(range(23,25))) # Exclude service number 5
     task_ID = mock_upload(IMAGE_FILE_PATH, service_num)
     start_time = time.time()
-    redis_thread=threading.Thread(target=redis_pull,args=(task_ID,start_time,times_list))
-    redis_thread.start()
+    redis_process = multiprocessing.Process(target=redis_pull,args=(task_ID,))
+    redis_process.start()
+    redis_process.join()
+    end_time = time.time()
+    execution_time = end_time - start_time
+    times_list.append(execution_time)
+    print("Thread finished")
 
     
 
@@ -58,15 +62,17 @@ if __name__ == "__main__":
     # pool.close()
     # pool.join()  
 
-    multiprocessing.pool.ThreadPool(50).map(thread_function,range(50))
+    args = [(times_list, i) for i in range(1000)]  # Create an iterable of tuples
+    pool = multiprocessing.pool.ThreadPool(1000)
+    pool.map(lambda p: thread_function(*p), args)
 
+    pool.close()
+    pool.join()
     
-    # for future in futures:
-    #     future.result()
-    # average_time = sum(times_list) / len(times_list)
-    # min_time = min(times_list)
-    # max_time = max(times_list)
+    average_time = sum(times_list) / len(times_list)
+    min_time = min(times_list)
+    max_time = max(times_list)
 
-    # print(f"Average Execution Time: {average_time}")
-    # print(f"Minimum Execution Time: {min_time}")
-    # print(f"Maximum Execution Time: {max_time}")
+    print(f"Average Execution Time: {average_time}")
+    print(f"Minimum Execution Time: {min_time}")
+    print(f"Maximum Execution Time: {max_time}")

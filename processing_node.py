@@ -134,6 +134,7 @@ class ProcessingNode:
     def convert_image_to_array(self, image):
         print(f"IMAGE : {image}")
         try:
+            img=None
             img = Image.open(image)
         except Exception as e:
             print(f"Failed to open image: {e}")
